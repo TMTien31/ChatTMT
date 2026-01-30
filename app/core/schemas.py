@@ -28,19 +28,15 @@ class UserProfile(BaseModel):
         default=None,
         description="User's background/context (e.g., 'software engineer', 'business owner', 'student')"
     )
-
 class SessionSummary(BaseModel):
-    """
-    Compressed representation of conversation history.
-    """
     user_profile: UserProfile = Field(default_factory=UserProfile)
     current_goal: Optional[str] = Field(
         default=None,
-        description="User's main objective in this session (e.g., 'Build a REST API for e-commerce')"
+        description="User's main objective in this session"
     )
     topics: List[str] = Field(
         default_factory=list,
-        description="Key entities/subjects discussed (e.g., ['FastAPI', 'PostgreSQL', 'Docker'])"
+        description="Key entities/subjects discussed"
     )
     key_facts: List[str] = Field(default_factory=list, description="Important facts extracted from conversation")
     decisions: List[str] = Field(default_factory=list, description="Decisions made during session")
@@ -52,16 +48,20 @@ class SummarizationResult(BaseModel):
     Output from Summarizer module.
     """
     session_summary: SessionSummary
-    message_range_summarized: Dict[str, int] = Field(
-        description="Range of messages summarized, e.g., {'from': 0, 'to': 42}"
+    summarized_up_to_turn: Optional[int] = Field(
+        default=None,
+        description="Cumulative: summary covers Turn 1 up to this turn"
     )
-    token_count_before: int
-    token_count_after: int
+    token_count_before: int = Field(
+        description="Token count before operation"
+    )
+    token_count_after: int = Field(
+        description="Token count after operation"
+    )
     was_compressed: bool = Field(
         default=False,
-        description="Whether summary was compressed during this update (threshold exceeded)"
+        description="True = COMPRESSION (summary→smaller), False = SUMMARIZATION (messages→summary)"
     )
-
 
 # 3. SESSION STATE SCHEMA
 class SessionState(BaseModel):
@@ -70,9 +70,13 @@ class SessionState(BaseModel):
     """
     raw_messages: List[Message] = Field(default_factory=list)
     summary: Optional[SessionSummary] = None
+    total_turns: int = Field(
+        default=0,
+        description="Total conversation turns (increments each turn)"
+    )
     clarification_count: int = Field(
         default=0,
-        description="Track consecutive clarification rounds to prevent infinite loops (max 2)"
+        description="Track consecutive clarification rounds to prevent infinite loops"
     )
 
 
@@ -88,15 +92,12 @@ class ContextUsage(BaseModel):
     use_todos: bool = False
 
 
-# Step 1: Rewrite/Paraphrase → Step 2: Context Augmentation → Step 3: Clarifying Questions
+# Step 1: Rewrite/Paraphrase 
 class RewriteResult(BaseModel):
     """
-    Output from Step 1: Rewrite/Paraphrase.
-    
-    Uses LIGHT CONTEXT (last 1-3 messages) for:
+    Uses LIGHT CONTEXT (last N (1-3) messages) for:
     - Resolving pronouns: "it", "that", "this"
     - Resolving references: "the above", "like before"
-    - Linguistic disambiguation only (NOT knowledge augmentation)
     
     Then detects if query is ambiguous and rewrites if needed.
     """
@@ -104,21 +105,20 @@ class RewriteResult(BaseModel):
     is_ambiguous: bool = Field(description="Whether the original query was ambiguous")
     rewritten_query: Optional[str] = Field(
         default=None,
-        description="Clarified version of query (with references resolved)"
+        description="Clarified version of query"
     )
     referenced_messages: List[Message] = Field(
         default_factory=list,
-        description="1-3 recent messages used to resolve references (light context)"
+        description="N (1-3) recent messages used to resolve references (light context)"
     )
     context_usage: ContextUsage = Field(
         default_factory=ContextUsage,
-        description="Which memory fields are needed for Step 2 augmentation"
+        description="Which memory fields are needed for augmentation"
     )
 
+#Step 2: Context Augmentation
 class AugmentedContext(BaseModel):
     """
-    Output from Step 2: Context Augmentation.
-    
     Build an augmented context by combining:
     - The most recent N conversation messages
     - Relevant fields from short-term session memory (based on ContextUsage flags)
@@ -139,10 +139,9 @@ class AugmentedContext(BaseModel):
         description="Complete combined context ready for LLM"
     )
 
+# Step 3: Clarifying Questions
 class ClarificationResult(BaseModel):
     """
-    Output from Step 3: Clarifying Questions.
-    
     If the query remains unclear AFTER rewriting and augmentation,
     generate 1-3 clarifying questions for the user.
     """
@@ -154,30 +153,11 @@ class ClarificationResult(BaseModel):
         description="1-3 clarifying questions (empty if needs_clarification=False)"
     )
 
+# Final Query Understanding Result (full pipeline output)
 class QueryUnderstandingResult(BaseModel):
-    """
-    Final output from Query Understanding Pipeline.
-    """
-    # Step 1: Rewrite
-    original_query: str
-    is_ambiguous: bool
-    rewritten_query: Optional[str] = None
-    
-    # Step 2: Augmentation
-    memory_fields_used: List[str] = Field(
-        default_factory=list,
-        description="Memory fields used for augmentation (e.g., ['user_profile', 'key_facts'])"
-    )
-    final_augmented_context: str = Field(
-        default="",
-        description="Complete context after augmentation"
-    )
-    
-    # Step 3: Clarification
-    clarifying_questions: List[str] = Field(
-        default_factory=list,
-        description="1-3 clarifying questions (if still unclear after Steps 1-2)"
-    )
+    rewrite: RewriteResult
+    augment: AugmentedContext
+    clarify: ClarificationResult
 
 # 5. ANSWER SCHEMA (Final Output)
 class Answer(BaseModel):

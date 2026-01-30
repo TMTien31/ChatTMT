@@ -16,14 +16,32 @@ class UserProfile(BaseModel):
     """
     User preferences and constraints extracted from conversation.
     """
-    prefs: List[str] = Field(default_factory=list, description="User preferences")
-    constraints: List[str] = Field(default_factory=list, description="User constraints/limitations")
+    prefs: List[str] = Field(
+        default_factory=list,
+        description="User preferences (e.g., 'detailed explanations', 'concise answers')"
+    )
+    constraints: List[str] = Field(
+        default_factory=list,
+        description="User constraints/limitations"
+    )
+    background: Optional[str] = Field(
+        default=None,
+        description="User's background/context (e.g., 'software engineer', 'business owner', 'student')"
+    )
 
 class SessionSummary(BaseModel):
     """
     Compressed representation of conversation history.
     """
     user_profile: UserProfile = Field(default_factory=UserProfile)
+    current_goal: Optional[str] = Field(
+        default=None,
+        description="User's main objective in this session (e.g., 'Build a REST API for e-commerce')"
+    )
+    topics: List[str] = Field(
+        default_factory=list,
+        description="Key entities/subjects discussed (e.g., ['FastAPI', 'PostgreSQL', 'Docker'])"
+    )
     key_facts: List[str] = Field(default_factory=list, description="Important facts extracted from conversation")
     decisions: List[str] = Field(default_factory=list, description="Decisions made during session")
     open_questions: List[str] = Field(default_factory=list, description="Unresolved questions")
@@ -39,6 +57,10 @@ class SummarizationResult(BaseModel):
     )
     token_count_before: int
     token_count_after: int
+    was_compressed: bool = Field(
+        default=False,
+        description="Whether summary was compressed during this update (threshold exceeded)"
+    )
 
 
 # 3. SESSION STATE SCHEMA
@@ -48,13 +70,16 @@ class SessionState(BaseModel):
     """
     raw_messages: List[Message] = Field(default_factory=list)
     summary: Optional[SessionSummary] = None
+    clarification_count: int = Field(
+        default=0,
+        description="Track consecutive clarification rounds to prevent infinite loops (max 2)"
+    )
 
 
 # 4. QUERY UNDERSTANDING PIPELINE
 class ContextUsage(BaseModel):
     """
     Specifies which parts of session memory to use for augmentation.
-    Used by Augmenter to know what to pull from session.summary.
     """
     use_user_profile: bool = False
     use_key_facts: bool = False
@@ -96,11 +121,15 @@ class AugmentedContext(BaseModel):
     
     Build an augmented context by combining:
     - The most recent N conversation messages
-    - Relevant fields from short-term session memory
+    - Relevant fields from short-term session memory (based on ContextUsage flags)
     """
     recent_messages: List[Message] = Field(
         default_factory=list,
         description="Most recent N messages from conversation"
+    )
+    memory_fields_used: List[str] = Field(
+        default_factory=list,
+        description="Memory fields used based on ContextUsage (e.g., ['user_profile', 'key_facts'])"
     )
     memory_context: str = Field(
         default="",
@@ -135,9 +164,9 @@ class QueryUnderstandingResult(BaseModel):
     rewritten_query: Optional[str] = None
     
     # Step 2: Augmentation
-    needed_context_from_memory: List[str] = Field(
+    memory_fields_used: List[str] = Field(
         default_factory=list,
-        description="Memory fields used (e.g., ['user_profile.prefs', 'key_facts'])"
+        description="Memory fields used for augmentation (e.g., ['user_profile', 'key_facts'])"
     )
     final_augmented_context: str = Field(
         default="",

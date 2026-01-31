@@ -1,9 +1,3 @@
-"""
-Query Understanding Pipeline
-
-Orchestrates: Rewrite → Augment → Clarify/Answer flow.
-"""
-
 import time
 from dataclasses import dataclass
 from typing import Optional, Union

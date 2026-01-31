@@ -1,4 +1,4 @@
-"""Processing modules: summarizer, rewriter, augmenter, clarifier, prompt_builder, answer."""
+"""Processing modules: summarizer, rewriter, augmenter, clarifier, answer."""
 
 from .summarizer import summarize_messages, compress_summary
 from .rewriter import rewrite_query

@@ -61,7 +61,7 @@ class Config:
         
         # LOGGING CONFIGURATION
         #Logging level (DEBUG, INFO, WARNING, ERROR).
-        self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+        self.LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG")
         
         #Path to log file.
         self.LOG_FILE = os.getenv("LOG_FILE", "logs/app.log")

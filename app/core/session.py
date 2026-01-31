@@ -113,20 +113,25 @@ class SessionManager:
         raw_text = " ".join(m.content for m in self.state.raw_messages)
         raw_tokens = count_tokens(raw_text)
         
-        if raw_tokens > config.TOKEN_THRESHOLD_RAW:
-            logger.info(f"Raw tokens ({raw_tokens}) > threshold ({config.TOKEN_THRESHOLD_RAW}) → Summarizing")
-            self._perform_summarization()
-            return True
-        
-        # Check summary tokens (only if summary exists)
+        # Check summary tokens
+        summary_tokens = 0
         if self.state.summary:
             summary_text = self.state.summary.model_dump_json()
             summary_tokens = count_tokens(summary_text)
-            
-            if summary_tokens > config.SUMMARY_TOKEN_THRESHOLD:
-                logger.info(f"Summary tokens ({summary_tokens}) > threshold ({config.SUMMARY_TOKEN_THRESHOLD}) → Compressing")
-                self._perform_compression()
-                return True
+        
+        # Log current state
+        logger.info(f"Session: turns={self.total_turns}, messages={len(self.raw_messages)}, "
+                   f"raw_tokens={raw_tokens}, summary_tokens={summary_tokens}")
+        
+        if raw_tokens > config.TOKEN_THRESHOLD_RAW:
+            logger.info(f"Trigger: raw_tokens ({raw_tokens}) > threshold ({config.TOKEN_THRESHOLD_RAW}) → Summarizing")
+            self._perform_summarization()
+            return True
+        
+        if self.state.summary and summary_tokens > config.SUMMARY_TOKEN_THRESHOLD:
+            logger.info(f"Trigger: summary_tokens ({summary_tokens}) > threshold ({config.SUMMARY_TOKEN_THRESHOLD}) → Compressing")
+            self._perform_compression()
+            return True
         
         return False
     
@@ -226,6 +231,36 @@ class SessionManager:
             data = json.load(f)
         
         return SessionState.model_validate(data)
+    
+    @classmethod
+    def load(cls, session_id: str, llm_client: Optional[BaseLLM] = None) -> "SessionManager":
+        """
+        Load an existing session from disk.
+        
+        Args:
+            session_id: Session ID to load
+            llm_client: Optional LLM client for operations
+            
+        Returns:
+            SessionManager instance with loaded state
+        """
+        filepath = os.path.join(config.SESSION_DATA_DIR, f"{session_id}.json")
+        
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"Session not found: {session_id}")
+        
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        
+        state = SessionState.model_validate(data)
+        
+        # Create new instance with loaded state
+        instance = cls.__new__(cls)
+        instance.state = state
+        instance.llm_client = llm_client
+        
+        logger.info(f"Loaded session: {session_id} ({state.total_turns} turns)")
+        return instance
     
     @classmethod
     def list_sessions(cls) -> list:

@@ -57,8 +57,13 @@ def rewrite_query(
     # Build RewriteResult
     result = _dict_to_rewrite_result(data, query, recent_messages)
     
-    logger.info(f"Rewrite complete: ambiguous={result.is_ambiguous}, "
-                f"rewritten={result.rewritten_query is not None}")
+    if result.rewritten_query:
+        logger.info(f"Rewrite: '{query}' → '{result.rewritten_query}'")
+    else:
+        logger.info(f"Rewrite: no rewrite needed")
+    
+    logger.info(f"Rewrite result: ambiguous={result.is_ambiguous}, "
+                f"context_usage={result.context_usage.model_dump()}")
     
     return result
 

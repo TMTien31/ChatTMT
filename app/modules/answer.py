@@ -1,9 +1,3 @@
-"""
-Answer Generation Module
-
-Generates final answers to user queries using augmented context.
-"""
-
 import json
 from typing import Optional
 
@@ -14,7 +8,6 @@ from app.utils.config import get_config
 
 logger = get_logger(__name__)
 config = get_config()
-
 
 def generate_answer(
     query: str,
@@ -57,7 +50,7 @@ def generate_answer(
         )
         answer = response.strip()
         
-        logger.info("Answer generated successfully")
+        logger.info(f"Answer generated ({len(answer)} chars)")
         return answer
         
     except Exception as e:
@@ -75,32 +68,32 @@ def _build_answer_prompt(
     
     prompt = f"""You are a helpful AI assistant with access to conversation history and user memory.
 
-⚠️ CRITICAL: You MUST read and use the context provided below. DO NOT ask for information that is already in the context.
+                CRITICAL: You MUST read and use the context provided below. DO NOT ask for information that is already in the context.
 
-AVAILABLE CONTEXT:
-{context_text}
+                AVAILABLE CONTEXT:
+                {context_text}
 
-MANDATORY RULES:
-1. ⚠️ **READ THE CONTEXT FIRST**: Before answering, carefully check what information is already provided
-2. ⚠️ **USE WHAT YOU HAVE**: If context contains preferences, past discussions, or relevant details → USE THEM
-3. ⚠️ **DO NOT RE-ASK**: NEVER ask for information that's already in the context (preferences, topics, decisions, etc.)
-4. **Be specific with context**: When context provides details, reference them explicitly
-5. **Be conversational**: Respond naturally, as if continuing an ongoing conversation
-6. **Be helpful**: Provide actionable information and examples
-7. **Remember continuity**: Maintain awareness of ongoing topics and tasks
+                MANDATORY RULES:
+                1. **READ THE CONTEXT FIRST**: Before answering, carefully check what information is already provided
+                2. **USE WHAT YOU HAVE**: If context contains preferences, past discussions, or relevant details → USE THEM
+                3. **DO NOT RE-ASK**: NEVER ask for information that's already in the context (preferences, topics, decisions, etc.)
+                4. **Be specific with context**: When context provides details, reference them explicitly
+                5. **Be conversational**: Respond naturally, as if continuing an ongoing conversation
+                6. **Be helpful**: Provide actionable information and examples
+                7. **Remember continuity**: Maintain awareness of ongoing topics and tasks
 
-EXAMPLE CORRECT BEHAVIOR:
-- If context says "PREFS: Prefers Python" and user asks "Suggest a language" → Recommend Python
-- If context shows "TOPICS: Database setup" and user asks "What next?" → Continue with database topic
-- If context has "TODOS: Write tests" and user asks "What to do?" → Reference the test writing task
+                EXAMPLE CORRECT BEHAVIOR:
+                - If context says "PREFS: Prefers Python" and user asks "Suggest a language" → Recommend Python
+                - If context shows "TOPICS: Database setup" and user asks "What next?" → Continue with database topic
+                - If context has "TODOS: Write tests" and user asks "What to do?" → Reference the test writing task
 
-RESPONSE STYLE:
-- Use a friendly, professional tone
-- Format with markdown when helpful (lists, code blocks, emphasis)
-- Explicitly reference context (e.g., "Based on your preference for Python..." or "As we discussed...")
-- If context is truly empty/insufficient, THEN you may ask clarifying questions
+                RESPONSE STYLE:
+                - Use a friendly, professional tone
+                - Format with markdown when helpful (lists, code blocks, emphasis)
+                - Explicitly reference context (e.g., "Based on your preference for Python..." or "As we discussed...")
+                - If context is truly empty/insufficient, THEN you may ask clarifying questions
 
-Now answer the user's query using the context provided above."""
+                Now answer the user's query using the context provided above."""
 
     return prompt
 

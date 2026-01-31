@@ -5,11 +5,19 @@ from pydantic import BaseModel, Field
 # 1. MESSAGE SCHEMA (Raw History)
 class Message(BaseModel):
     """
-    Single conversation message.
+    Single conversation message for chat history (user/assistant only).
+    System messages are NOT stored in history.
     """
     role: Literal["user", "assistant"]
     content: str
     timestamp: Optional[datetime] = None
+
+class LLMMessage(BaseModel):
+    """
+    Message format for LLM API calls (includes system role for instructions).
+    """
+    role: Literal["system", "user", "assistant"]
+    content: str
 
 # 2. SESSION SUMMARY SCHEMA
 class UserProfile(BaseModel):

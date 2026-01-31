@@ -57,7 +57,7 @@ def generate_answer(
         )
         answer = response.strip()
         
-        logger.info(f"Generated answer: {len(answer)} chars")
+        logger.info("Answer generated successfully")
         return answer
         
     except Exception as e:

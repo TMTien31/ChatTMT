@@ -170,7 +170,7 @@ class QueryPipeline:
                 llm=self.llm
             )
             
-            logger.info(f"Generated answer: {len(answer)} chars")
+            logger.info("Answer generated")
             
             return PipelineResult(
                 rewrite_result=rewrite_result,

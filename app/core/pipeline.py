@@ -4,6 +4,7 @@ Query Understanding Pipeline
 Orchestrates: Rewrite → Augment → Clarify/Answer flow.
 """
 
+import time
 from dataclasses import dataclass
 from typing import Optional, Union
 
@@ -88,15 +89,20 @@ class QueryPipeline:
         Returns:
             PipelineResult with all stage outputs and final response
         """
+        start_time = time.time()
+        
         # Set session context for all logs in this request
         current_session_id.set(self.session.session_id)
         
         logger.info(f"Processing query: '{query[:50]}...' at turn {self.session.total_turns + 1}")
         
         # Step 0: Check and perform summarization/compression if needed
+        step0_start = time.time()
         was_summarized = self.session.check_and_summarize()
+        step0_time = time.time() - step0_start
         
         # Step 1: Rewrite query
+        step1_start = time.time()
         light_context = self.session.get_light_context()
         rewrite_result = rewrite_query(
             query=query,
@@ -104,30 +110,37 @@ class QueryPipeline:
             llm_client=self.llm,
             summary=self.session.summary
         )
+        step1_time = time.time() - step1_start
         
         logger.info(f"Rewrite: ambiguous={rewrite_result.is_ambiguous}, "
-                   f"rewritten={'Yes' if rewrite_result.rewritten_query else 'No'}")
+                   f"rewritten={'Yes' if rewrite_result.rewritten_query else 'No'} [{step1_time:.2f}s]")
         
         # Step 2: Augment context
+        step2_start = time.time()
         augmented_context = augment_context(
             recent_messages=self.session.get_recent_messages(),
             context_usage=rewrite_result.context_usage,
             summary=self.session.summary
         )
+        step2_time = time.time() - step2_start
         
         logger.info(f"Augmented: memory_fields={augmented_context.memory_fields_used}, "
-                   f"recent_msgs={len(augmented_context.recent_messages)}")
+                   f"recent_msgs={len(augmented_context.recent_messages)} [{step2_time:.3f}s]")
         
         # Step 3: Decision - Clarify or Answer?
         # Use rewritten query if available, else original
         effective_query = rewrite_result.rewritten_query or query
         
         # Check clarification
+        step3_start = time.time()
         clarification_result = check_clarification_needed(
             original_query=effective_query,
             augmented_context=augmented_context,
             llm_client=self.llm
         )
+        step3_time = time.time() - step3_start
+        
+        logger.info(f"Clarification check: needs={clarification_result.needs_clarification} [{step3_time:.2f}s]")
         
         # Decision logic
         if clarification_result.needs_clarification:
@@ -139,7 +152,12 @@ class QueryPipeline:
                 self.session.reset_clarification()
                 
                 # Force answer with generic helpful response
+                step4_start = time.time()
                 answer = self._generate_forced_answer(effective_query, augmented_context)
+                step4_time = time.time() - step4_start
+                
+                total_time = time.time() - start_time
+                logger.info(f"Forced answer [{step4_time:.2f}s] | Pipeline completed [total: {total_time:.2f}s]")
                 
                 return PipelineResult(
                     rewrite_result=rewrite_result,
@@ -156,6 +174,9 @@ class QueryPipeline:
                     clarification_result.clarifying_questions
                 )
                 
+                total_time = time.time() - start_time
+                logger.info(f"Pipeline completed: clarification response [total: {total_time:.2f}s]")
+                
                 return PipelineResult(
                     rewrite_result=rewrite_result,
                     augmented_context=augmented_context,
@@ -167,13 +188,16 @@ class QueryPipeline:
         else:
             # Generate answer
             self.session.reset_clarification()
+            step4_start = time.time()
             answer = generate_answer(
                 query=effective_query,
                 augmented_context=augmented_context,
                 llm=self.llm
             )
+            step4_time = time.time() - step4_start
             
-            logger.info("Answer generated")
+            total_time = time.time() - start_time
+            logger.info(f"Answer generated [{step4_time:.2f}s] | Pipeline completed [total: {total_time:.2f}s]")
             
             return PipelineResult(
                 rewrite_result=rewrite_result,

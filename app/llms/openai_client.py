@@ -41,7 +41,12 @@ class OpenAIClient(BaseLLM):
             )
             
             content = response.choices[0].message.content
-            logger.debug(f"OpenAI response received: {len(content)} chars")
+            
+            # Log token usage
+            if response.usage:
+                logger.info(f"LLM call [prompt_tokens={response.usage.prompt_tokens}, "
+                          f"completion_tokens={response.usage.completion_tokens}, "
+                          f"total={response.usage.total_tokens}]")
             
             return content
             

@@ -25,9 +25,13 @@ class Config:
 
         # QUERY UNDERSTANDING CONFIGURATION
         # Number of recent messages to use for query rewriting (light context).
+        # Note: 1 turn = 2 messages (user + assistant)
+        # Default 8 messages = last 4 turns
         self.LIGHT_CONTEXT_SIZE = int(os.getenv("LIGHT_CONTEXT_SIZE", "8"))
         
         # Number of recent messages to include in augmentation.
+        # Note: 1 turn = 2 messages (user + assistant)
+        # Default 10 messages = last 5 turns
         self.RECENT_CONTEXT_SIZE = int(os.getenv("RECENT_CONTEXT_SIZE", "10"))
         
         #Maximum consecutive clarification attempts.

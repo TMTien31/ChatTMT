@@ -37,6 +37,24 @@ class Config:
         #Maximum consecutive clarification attempts.
         self.MAX_CLARIFICATION_ROUNDS = int(os.getenv("MAX_CLARIFICATION_ROUNDS", "2"))
         
+        # MODULE-SPECIFIC LLM SETTINGS
+        # Temperature: lower = more deterministic, higher = more creative
+        # Summarizer: low temp for consistent extraction
+        self.SUMMARIZER_TEMPERATURE = float(os.getenv("SUMMARIZER_TEMPERATURE", "0.2"))
+        self.SUMMARIZER_MAX_TOKENS = int(os.getenv("SUMMARIZER_MAX_TOKENS", "2000"))
+        
+        # Rewriter: low temp for accurate query understanding
+        self.REWRITER_TEMPERATURE = float(os.getenv("REWRITER_TEMPERATURE", "0.2"))
+        self.REWRITER_MAX_TOKENS = int(os.getenv("REWRITER_MAX_TOKENS", "1000"))
+        
+        # Clarifier: slightly higher for natural questions
+        self.CLARIFIER_TEMPERATURE = float(os.getenv("CLARIFIER_TEMPERATURE", "0.3"))
+        self.CLARIFIER_MAX_TOKENS = int(os.getenv("CLARIFIER_MAX_TOKENS", "500"))
+        
+        # Answer: higher temp for natural, creative responses
+        self.ANSWER_TEMPERATURE = float(os.getenv("ANSWER_TEMPERATURE", "0.7"))
+        self.ANSWER_MAX_TOKENS = int(os.getenv("ANSWER_MAX_TOKENS", "2000"))
+        
         # SESSION CONFIGURATION
         #Directory to store session state files.
         self.SESSION_DATA_DIR = os.getenv("SESSION_DATA_DIR", "data/sessions")

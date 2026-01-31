@@ -3,8 +3,10 @@ from typing import Optional
 from app.core.schemas import LLMMessage, ClarificationResult, AugmentedContext
 from app.llms.base import BaseLLM
 from app.utils.logger import get_logger
+from app.utils.config import get_config
 
 logger = get_logger(__name__)
+config = get_config()
 
 def check_clarification_needed(
     original_query: str,
@@ -35,7 +37,11 @@ def check_clarification_needed(
     
     # Call LLM
     logger.debug("Calling LLM for clarification decision")
-    response = llm_client.chat(llm_messages, temperature=0.3, max_tokens=500)
+    response = llm_client.chat(
+        llm_messages, 
+        temperature=config.CLARIFIER_TEMPERATURE, 
+        max_tokens=config.CLARIFIER_MAX_TOKENS
+    )
     
     # Parse response
     logger.debug(f"LLM raw response: {response[:200]}")

@@ -10,15 +10,17 @@ from typing import Optional
 from app.core.schemas import AugmentedContext, LLMMessage
 from app.llms.base import BaseLLM
 from app.utils.logger import get_logger
+from app.utils.config import get_config
 
 logger = get_logger(__name__)
+config = get_config()
 
 
 def generate_answer(
     query: str,
     augmented_context: AugmentedContext,
     llm: BaseLLM,
-    temperature: float = 0.7
+    temperature: Optional[float] = None
 ) -> str:
     """
     Generate answer to user query using augmented context.
@@ -27,11 +29,14 @@ def generate_answer(
         query: User's query to answer
         augmented_context: Context extracted from memory and recent messages
         llm: LLM client to use
-        temperature: Sampling temperature (0.7 for natural responses)
+        temperature: Sampling temperature (defaults to config.ANSWER_TEMPERATURE)
         
     Returns:
         Generated answer as string
     """
+    if temperature is None:
+        temperature = config.ANSWER_TEMPERATURE
+        
     logger.info(f"Generating answer for query: '{query}'")
     
     # Build prompt with context
@@ -45,7 +50,11 @@ def generate_answer(
     
     # Generate answer
     try:
-        response = llm.chat(messages, temperature=temperature)
+        response = llm.chat(
+            messages, 
+            temperature=temperature, 
+            max_tokens=config.ANSWER_MAX_TOKENS
+        )
         answer = response.strip()
         
         logger.info(f"Generated answer: {len(answer)} chars")
@@ -101,7 +110,7 @@ def generate_contextual_response(
     augmented_context: AugmentedContext,
     llm: BaseLLM,
     include_metadata: bool = False,
-    temperature: float = 0.7
+    temperature: Optional[float] = None
 ) -> dict:
     """
     Generate answer with additional metadata.
@@ -111,7 +120,7 @@ def generate_contextual_response(
         augmented_context: Context from memory
         llm: LLM client
         include_metadata: If True, return metadata about context usage
-        temperature: Sampling temperature
+        temperature: Sampling temperature (defaults to config.ANSWER_TEMPERATURE)
         
     Returns:
         Dict with 'answer' and optionally 'metadata'

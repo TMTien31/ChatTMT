@@ -2,6 +2,7 @@
 
 from .schemas import (
     Message,
+    LLMMessage,
     UserProfile,
     SessionSummary,
     SummarizationResult,
@@ -14,9 +15,13 @@ from .schemas import (
     Answer,
     PromptPayload,
 )
+from .session import SessionManager
+from .pipeline import QueryPipeline, PipelineResult
 
 __all__ = [
+    # Schemas
     "Message",
+    "LLMMessage",
     "UserProfile",
     "SessionSummary",
     "SummarizationResult",
@@ -28,4 +33,8 @@ __all__ = [
     "QueryUnderstandingResult",
     "Answer",
     "PromptPayload",
+    # Session & Pipeline
+    "SessionManager",
+    "QueryPipeline",
+    "PipelineResult",
 ]

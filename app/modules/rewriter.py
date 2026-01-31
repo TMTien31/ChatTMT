@@ -6,6 +6,7 @@ from app.utils.logger import get_logger
 from app.utils.config import get_config
 
 logger = get_logger(__name__)
+config = get_config()
 
 def rewrite_query(
     query: str,
@@ -31,7 +32,11 @@ def rewrite_query(
     
     # Call LLM
     logger.debug("Calling LLM for query rewriting")
-    response = llm_client.chat(llm_messages, temperature=0.2, max_tokens=1000)
+    response = llm_client.chat(
+        llm_messages, 
+        temperature=config.REWRITER_TEMPERATURE, 
+        max_tokens=config.REWRITER_MAX_TOKENS
+    )
     
     # Parse response
     logger.debug(f"LLM raw response: {response[:200]}")

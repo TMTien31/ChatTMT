@@ -185,8 +185,8 @@ session_state.total_turns += 1  # Now = 11
 # session_state.total_turns = 19 (after Turn 19 completed)
 
 # Step 0: SUMMARIZATION triggered
-# Calculate which turn to summarize up to
-summarized_up_to = session_state.total_turns - (KEEP_RECENT_N // 2)  # 19 - 5 = 14
+# Summarize ALL messages up to current turn
+summarized_up_to = session_state.total_turns  # 19 - summarize all Turn 1-19
 
 new_summary = SessionSummary(
     user_profile=UserProfile(
@@ -204,15 +204,17 @@ new_summary = SessionSummary(
 
 summarization_result = SummarizationResult(
     session_summary=new_summary,
-    summarized_up_to_turn=14,  # Summary covers Turn 1-14, keep Turn 15-19
+    summarized_up_to_turn=19,  # Summary covers Turn 1-19
     token_count_before=10500,
     token_count_after=800,
     was_compressed=False
 )
 
 # Keep recent messages (overlap is intentional - see note below)
-session_state.raw_messages = session_state.raw_messages[-11:]  # 10 completed + current
+# KEEP_RECENT_N = 10, so keep last 10 messages (Turn 10-19)
+session_state.raw_messages = session_state.raw_messages[-10:]
 session_state.summary = new_summary
+session_state.summarized_up_to_turn = 19  # Track cumulative summarization
 session_state.total_turns += 1  # Now = 20
 
 # Step 1: Rewrite with summary available
@@ -253,11 +255,13 @@ answer = Answer(answer="For authentication with FastAPI...")
 
 ### Why Overlap is Intentional
 
+**Overlap**: Summary covers Turn 1-19, but `raw_messages` keeps Turn 10-19 (10 recent messages).
+
 Summary and recent messages serve **different purposes**:
 - **Summary**: Compressed knowledge (facts, decisions) - loses exact wording
 - **Recent messages**: Exact context - needed for pronoun resolution ("it", "that")
 
-Overlap cost (~500 tokens) is worth the benefit of accurate reference resolution.
+Overlap cost (~500 tokens for Turn 10-19) is worth the benefit of accurate reference resolution.
 
 ---
 
@@ -272,16 +276,18 @@ Overlap cost (~500 tokens) is worth the benefit of accurate reference resolution
 # COMPRESSION: Condense summary only, DO NOT touch raw_messages
 compressed_summary = summarizer.compress_summary(session_state.summary)
 # LLM condenses: 20 topics → 8, 35 facts → 14, 18 decisions → 8
+# Keep the same summarized_up_to_turn from previous summarization
 
 summarization_result = SummarizationResult(
     session_summary=compressed_summary,
-    summarized_up_to_turn=None,  # None for compression
+    summarized_up_to_turn=session_state.summarized_up_to_turn,  # Keep tracking value (e.g., 19)
     token_count_before=2300,
     token_count_after=1400,
     was_compressed=True
 )
 
 session_state.summary = compressed_summary
+# session_state.summarized_up_to_turn: UNCHANGED (still 19)
 session_state.total_turns += 1  # Now = 50
 # raw_messages: UNCHANGED
 ```
@@ -320,12 +326,12 @@ session_state.total_turns += 1  # Now = 61
 
 ### Token Flow
 ```
-Turn 1-19:   raw_messages: 0 → 10.5k, summary: None
-Turn 20:     SUMMARIZATION → raw_messages: 550 (11 kept), summary: 800
+Turn 1-19:   raw_messages: 0 → 10.5k, summary: None, summarized_up_to_turn: None
+Turn 20:     SUMMARIZATION → raw_messages: 550, summary: 800, summarized_up_to_turn: 19
 Turn 21-49:  raw_messages grows, summary grows to 2.3k
-Turn 50:     COMPRESSION → raw_messages: unchanged, summary: 1.4k
-Turn 51-69:  raw_messages: 550 → 10.8k, summary: unchanged
-Turn 70:     SUMMARIZATION → raw_messages: 550, summary: 1.8k (cumulative)
+Turn 50:     COMPRESSION → raw_messages: 550, summary: 1.4k, summarized_up_to_turn: 19 (unchanged)
+Turn 51-69:  raw_messages: 550 → 10.8k, summary: 1.4k
+Turn 70:     SUMMARIZATION → raw_messages: 550, summary: 2.0k, summarized_up_to_turn: 70 (cumulative)
 ```
 
 ### Operation Comparison
@@ -335,7 +341,7 @@ Turn 70:     SUMMARIZATION → raw_messages: 550, summary: 1.8k (cumulative)
 | Trigger | raw_messages > 10k | summary > 2k |
 | Input | raw_messages | summary only |
 | Affects raw_messages? | Yes (keep N recent) | No |
-| summarized_up_to_turn | Set (cumulative) | None |
+| summarized_up_to_turn | Set to current turn | Keep previous value |
 | was_compressed | False | True |
 
 ### Edge Cases

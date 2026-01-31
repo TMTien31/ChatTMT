@@ -68,8 +68,23 @@ class SessionState(BaseModel):
     """
     Complete session state.
     """
+    session_id: str = Field(
+        description="Unique session identifier"
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.now,
+        description="Session creation timestamp"
+    )
+    last_updated: datetime = Field(
+        default_factory=datetime.now,
+        description="Last modification timestamp"
+    )
     raw_messages: List[Message] = Field(default_factory=list)
     summary: Optional[SessionSummary] = None
+    summarized_up_to_turn: Optional[int] = Field(
+        default=None,
+        description="Tracking: summary covers Turn 1 up to this turn"
+    )
     total_turns: int = Field(
         default=0,
         description="Total conversation turns (increments each turn)"
@@ -86,6 +101,8 @@ class ContextUsage(BaseModel):
     Specifies which parts of session memory to use for augmentation.
     """
     use_user_profile: bool = False
+    use_current_goal: bool = False
+    use_topics: bool = False
     use_key_facts: bool = False
     use_decisions: bool = False
     use_open_questions: bool = False

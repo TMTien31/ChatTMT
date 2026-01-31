@@ -2,7 +2,11 @@ import logging
 import sys
 from pathlib import Path
 from typing import Optional
+from contextvars import ContextVar
 from app.utils.config import get_config
+
+# Context variable to store current session_id across async/threaded calls
+current_session_id: ContextVar[str] = ContextVar('session_id', default='none')
 
 def setup_logger(
     name: str,
@@ -39,9 +43,20 @@ def setup_logger(
     # Remove existing handlers to avoid duplicates
     logger.handlers.clear()
     
+    # Custom filter to inject session_id from context
+    class SessionContextFilter(logging.Filter):
+        def filter(self, record):
+            if not hasattr(record, 'session_id'):
+                record.session_id = current_session_id.get()[:8] if current_session_id.get() != 'none' else 'none'
+            return True
+    
+    # Add filter to logger
+    logger.addFilter(SessionContextFilter())
+    
     # Simple formatter for both file and console
+    # Include session_id if available in log record
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        '%(asctime)s | session=%(session_id)s | %(name)s | %(levelname)s | %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     

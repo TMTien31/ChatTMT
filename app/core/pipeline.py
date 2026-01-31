@@ -20,7 +20,7 @@ from app.modules.rewriter import rewrite_query
 from app.modules.augmenter import augment_context
 from app.modules.clarifier import check_clarification_needed
 from app.modules.answer import generate_answer
-from app.utils.logger import get_logger
+from app.utils.logger import get_logger, current_session_id
 from app.utils.config import get_config
 
 logger = get_logger(__name__)
@@ -88,6 +88,9 @@ class QueryPipeline:
         Returns:
             PipelineResult with all stage outputs and final response
         """
+        # Set session context for all logs in this request
+        current_session_id.set(self.session.session_id)
+        
         logger.info(f"Processing query: '{query[:50]}...' at turn {self.session.total_turns + 1}")
         
         # Step 0: Check and perform summarization/compression if needed

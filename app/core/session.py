@@ -73,6 +73,10 @@ class SessionManager:
     def clarification_count(self) -> int:
         return self.state.clarification_count
     
+    @property
+    def summarized_up_to_turn(self) -> Optional[int]:
+        return self.state.summarized_up_to_turn
+    
     def add_turn(self, user_message: str, assistant_message: str) -> None:
         """
         Add a complete turn (user + assistant messages) to session.

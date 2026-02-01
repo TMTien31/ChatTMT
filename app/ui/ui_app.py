@@ -176,6 +176,41 @@ def main():
                     for fact in session.summary.key_facts[:3]:
                         st.markdown(f"- {fact}")
         
+        if st.button("Save Session", use_container_width=True):
+            session.save()
+            st.success("Session saved!")
+        
+        st.markdown("---")
+        
+        with st.expander("Debug Panel", expanded=False):
+            st.subheader("Session State")
+            st.json({
+                "session_id": session.session_id,
+                "total_turns": session.total_turns,
+                "clarification_count": session.clarification_count,
+                "summarized_up_to_turn": session.summarized_up_to_turn,
+                "raw_messages_count": len(session.raw_messages),
+            })
+            
+            if session.summary:
+                st.subheader("Summary Schema")
+                summary_dict = {
+                    "topics": session.summary.topics,
+                    "key_facts": session.summary.key_facts,
+                    "decisions": session.summary.decisions,
+                    "current_goal": session.summary.current_goal,
+                    "open_questions": session.summary.open_questions,
+                    "todos": session.summary.todos,
+                    "user_profile": {
+                        "background": session.summary.user_profile.background,
+                        "preferences": session.summary.user_profile.preferences,
+                        "expertise": session.summary.user_profile.expertise,
+                    } if session.summary.user_profile else None
+                }
+                st.json(summary_dict)
+            else:
+                st.info("No summary yet (conversation too short)")
+        
         st.markdown("---")
         
         st.subheader("Previous Sessions")
@@ -210,9 +245,9 @@ def main():
             st.info("No saved sessions yet")
         
         st.markdown("---")
-        st.caption("Built with LangChain & Streamlit")
+        st.caption("Built with OpenAI & Streamlit")
     
-    st.title("Chat with TMT")
+    st.title("Chat with ChatTMT")
     
     chat_container = st.container()
     with chat_container:

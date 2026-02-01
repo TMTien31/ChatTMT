@@ -105,10 +105,13 @@ def run_interactive_chat():
                 print()
                 
             except KeyboardInterrupt:
-                print("\n\nInterrupted. Saving session...")
-                session.save()
-                print(f"Session saved: {session.session_id}.json")
-                print("\nGoodbye!\n")
+                print("\n\n⚠️  Interrupted! Saving your session...")
+                try:
+                    session.save()
+                    print(f"✅ Session saved: {session.session_id}.json")
+                except Exception as e:
+                    print(f"❌ Failed to save session: {e}")
+                print("\n👋 Goodbye!\n")
                 break
             
             except Exception as e:

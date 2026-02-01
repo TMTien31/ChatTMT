@@ -17,7 +17,7 @@ from app.utils.config import get_config
 config = get_config()
 
 
-def list_saved_sessions() -> List[tuple[str, dict]]:
+def list_saved_sessions(force_refresh: bool = False) -> List[tuple[str, dict]]:
     sessions_dir = Path(config.SESSION_DATA_DIR)
     if not sessions_dir.exists():
         return []
@@ -81,7 +81,14 @@ def format_session_name(session_id: str, metadata: dict) -> str:
 
 def initialize_session_state():
     if 'llm_client' not in st.session_state:
-        st.session_state.llm_client = OpenAIClient()
+        try:
+            st.session_state.llm_client = OpenAIClient()
+            from app.core.schemas import LLMMessage
+            st.session_state.llm_client.chat([LLMMessage(role="user", content="Hi")], max_tokens=5)
+        except Exception as e:
+            st.error(f"Failed to initialize OpenAI client: {str(e)}")
+            st.error("Please check your OPENAI_API_KEY in .env file")
+            st.stop()
     
     if 'session_manager' not in st.session_state:
         st.session_state.session_manager = SessionManager(
@@ -154,8 +161,13 @@ def main():
         st.title("ChatTMT")
         st.markdown("---")
         
-        if st.button("New Chat", use_container_width=True, type="primary"):
-            create_new_session()
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            if st.button("New Chat", use_container_width=True, type="primary"):
+                create_new_session()
+        with col2:
+            if st.button("🔄", help="Refresh session list"):
+                st.rerun()
         
         st.markdown("---")
         

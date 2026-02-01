@@ -276,8 +276,22 @@ def main():
                     
                     st.session_state.session_manager.save()
                     
+                except json.JSONDecodeError as e:
+                    error_msg = f"JSON parsing error: {str(e)}. Please try again."
+                    st.error(error_msg)
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": error_msg
+                    })
+                except (IOError, OSError) as e:
+                    error_msg = f"File system error: {str(e)}. Check session directory permissions."
+                    st.error(error_msg)
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": error_msg
+                    })
                 except Exception as e:
-                    error_msg = f"Error: {str(e)}"
+                    error_msg = f"Unexpected error: {str(e)}"
                     st.error(error_msg)
                     st.session_state.messages.append({
                         "role": "assistant",

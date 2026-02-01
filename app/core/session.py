@@ -197,14 +197,16 @@ class SessionManager:
         return self.state.raw_messages[-config.LIGHT_CONTEXT_SIZE:]
     
     def save(self) -> None:
-        """Save session state to disk."""
         os.makedirs(config.SESSION_DATA_DIR, exist_ok=True)
         filepath = os.path.join(config.SESSION_DATA_DIR, f"{self.session_id}.json")
         
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(self.state.model_dump_json(indent=2))
-        
-        logger.debug(f"Saved session to {filepath}")
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(self.state.model_dump_json(indent=2))
+            logger.debug(f"Saved session to {filepath}")
+        except (IOError, OSError) as e:
+            logger.error(f"Failed to save session {self.session_id}: {e}")
+            raise
     
     def _load_session(self, session_id: str) -> SessionState:
         """Load session state from disk."""

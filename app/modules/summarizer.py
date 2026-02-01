@@ -39,8 +39,15 @@ def summarize_messages(
         logger.debug("Successfully parsed LLM response")
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse LLM response: {e}")
-        # Fallback to empty summary
-        summary_dict = {}
+        summary_dict = {
+            "user_profile": {"prefs": [], "constraints": [], "background": None},
+            "current_goal": None,
+            "topics": [],
+            "key_facts": [],
+            "decisions": [],
+            "open_questions": [],
+            "todos": []
+        }
     
     # Convert to SessionSummary
     summary = _dict_to_session_summary(summary_dict)

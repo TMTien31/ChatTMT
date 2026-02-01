@@ -36,15 +36,14 @@ def augment_context(
     memory_context_parts = []
     
     if summary:
-        # User profile (preferences, constraints, background)
-        if context_usage.use_user_profile and summary.user_profile:
+        if context_usage.use_user_profile and summary.user_profile is not None:
             memory_fields_used.append("user_profile")
             parts = []
-            if summary.user_profile.prefs:
+            if hasattr(summary.user_profile, 'prefs') and summary.user_profile.prefs:
                 parts.append(f"Preferences: {', '.join(summary.user_profile.prefs)}")
-            if summary.user_profile.constraints:
+            if hasattr(summary.user_profile, 'constraints') and summary.user_profile.constraints:
                 parts.append(f"Constraints: {', '.join(summary.user_profile.constraints)}")
-            if summary.user_profile.background:
+            if hasattr(summary.user_profile, 'background') and summary.user_profile.background:
                 parts.append(f"Background: {summary.user_profile.background}")
             if parts:
                 memory_context_parts.append("USER PROFILE:\n" + "\n".join(parts))

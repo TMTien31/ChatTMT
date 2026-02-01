@@ -102,7 +102,6 @@ def get_logger(name: str) -> logging.Logger:
     return _loggers[name]
 
 def clear_loggers() -> None:
-    """Clear all cached loggers. Useful for testing."""
     global _loggers
     for logger in _loggers.values():
         logger.handlers.clear()

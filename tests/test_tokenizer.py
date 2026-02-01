@@ -1,8 +1,3 @@
-"""
-Tests for tokenizer utilities.
-Phase 1.2: Tokenizer Tests
-"""
-
 import pytest
 from app.utils.tokenizer import (
     count_tokens,
@@ -13,21 +8,17 @@ from app.core.schemas import Message, UserProfile, SessionSummary
 
 
 class TestCountTokens:
-    """Test basic token counting for text."""
     
     def test_count_empty_string(self):
-        """Test counting tokens in empty string."""
         assert count_tokens("") == 0
     
     def test_count_simple_text(self):
-        """Test counting tokens in simple text."""
         text = "Hello, world!"
         count = count_tokens(text)
         assert count > 0
-        assert count < 10  # Should be around 3-4 tokens
+        assert count < 10
     
     def test_count_longer_text(self):
-        """Test counting tokens in longer text."""
         text = "I want to build a REST API for an e-commerce platform using FastAPI and PostgreSQL."
         count = count_tokens(text)
         assert count > 10

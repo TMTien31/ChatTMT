@@ -1,5 +1,3 @@
-"""LLM providers: base interface, OpenAI client."""
-
 from .base import BaseLLM
 from .openai_client import OpenAIClient
 

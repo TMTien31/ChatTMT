@@ -1,31 +1,23 @@
-"""
-Tests for augmenter module (context augmentation).
-
-Augmenter is pure Python (no LLM) - fast and deterministic.
-"""
 import pytest
 from app.core.schemas import Message, SessionSummary, UserProfile, ContextUsage
 from app.modules.augmenter import augment_context, format_augmented_context
 
 
 class TestAugmenter:
-    """Test context augmentation logic."""
     
     def test_augment_with_no_memory(self):
-        """Test augmentation when no summary exists."""
         recent = [
             Message(role="user", content="Hello"),
             Message(role="assistant", content="Hi there"),
         ]
         
         context_usage = ContextUsage(
-            use_current_goal=True,  # Requested but no summary available
+            use_current_goal=True,
             use_topics=True
         )
         
         result = augment_context(recent, context_usage, summary=None)
         
-        # Should include recent messages
         assert len(result.recent_messages) == 2
         assert result.recent_messages[0].content == "Hello"
         

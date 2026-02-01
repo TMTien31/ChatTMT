@@ -1,8 +1,3 @@
-"""
-Tests for conversation summarization using real OpenAI API.
-Phase 2.1: Summarizer Tests
-"""
-
 import pytest
 from app.core.schemas import Message, SessionSummary, UserProfile
 from app.modules.summarizer import summarize_messages, compress_summary
@@ -12,16 +7,13 @@ from app.utils.config import reload_config
 
 @pytest.fixture(scope="function")
 def llm_client():
-    """Initialize OpenAI client for each test."""
     reload_config()
     return OpenAIClient()
 
 
 class TestSummarizer:
-    """Core summarizer tests with real OpenAI API."""
     
     def test_basic_summarization(self, llm_client):
-        """Test basic message summarization."""
         messages = [
             Message(role="user", content="Hi, I'm John. I'm a Python developer interested in AI."),
             Message(role="assistant", content="Hello John! Great to meet you."),

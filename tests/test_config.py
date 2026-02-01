@@ -1,31 +1,21 @@
-"""
-Tests for configuration management.
-Phase 1.3: Config Tests
-"""
-
 import pytest
 import os
 from app.utils.config import Config, get_config, reload_config
 
 
 class TestConfigDefaults:
-    """Test configuration default values."""
     
     def test_default_values(self):
-        """Test that defaults are set correctly."""
         config = Config()
         
-        # LLM config
         assert config.OPENAI_MODEL == "gpt-4"
         assert config.OPENAI_TEMPERATURE == 0.2
         assert config.OPENAI_MAX_TOKENS == 2000
         
-        # Token thresholds
         assert config.TOKEN_THRESHOLD_RAW == 10000
         assert config.SUMMARY_TOKEN_THRESHOLD == 2000
         assert config.KEEP_RECENT_N == 16
         
-        # Query understanding
         assert config.LIGHT_CONTEXT_SIZE == 8
         assert config.RECENT_CONTEXT_SIZE == 10
         assert config.MAX_CLARIFICATION_ROUNDS == 2

@@ -1,15 +1,3 @@
-"""
-End-to-End Tests
-
-Test full conversation flows including:
-- Summarization triggers
-- Compression triggers
-- Clarification loops
-- Context continuity
-
-WARNING: These tests are expensive (~$1-2 per full run) as they make many LLM calls.
-"""
-
 import pytest
 from app.core.session import SessionManager
 from app.core.pipeline import QueryPipeline
@@ -20,23 +8,15 @@ config = get_config()
 
 
 class TestE2EConversationFlow:
-    """End-to-end conversation flow tests."""
     
     @pytest.fixture
     def llm_client(self):
-        """Create OpenAI client."""
         return OpenAIClient()
     
     def test_basic_conversation_flow(self, llm_client):
-        """
-        Test basic multi-turn conversation without triggering summarization.
-        
-        Cost: ~$0.10-0.15 (5 turns)
-        """
         session = SessionManager(llm_client=llm_client)
         pipeline = QueryPipeline(session, llm_client)
         
-        # Turn 1: Initial query
         result = pipeline.process_and_record("I want to build a REST API")
         assert not result.needs_clarification
         assert session.total_turns == 1

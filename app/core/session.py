@@ -1,9 +1,3 @@
-"""
-Session Manager Module
-
-Manages session state: raw_messages, summary, turn tracking, persistence.
-"""
-
 import json
 import os
 from datetime import datetime
@@ -142,11 +136,6 @@ class SessionManager:
     def _perform_summarization(self) -> None:
         """
         Summarize raw_messages into summary, keep KEEP_RECENT_N messages.
-        
-        This is SUMMARIZATION (raw_messages → summary):
-        - Summarizes ALL messages up to current turn
-        - Keeps last KEEP_RECENT_N messages for pronoun resolution
-        - Sets summarized_up_to_turn = current total_turns
         """
         logger.info(f"Performing summarization at turn {self.state.total_turns}")
         
@@ -157,8 +146,7 @@ class SessionManager:
             existing_summary=self.state.summary
         )
         
-        # Keep recent messages (for pronoun resolution overlap)
-        # Note: KEEP_RECENT_N is message count, not turn count
+        # Keep recent messages
         self.state.raw_messages = self.state.raw_messages[-config.KEEP_RECENT_N:]
         
         # Update state
@@ -172,10 +160,6 @@ class SessionManager:
     def _perform_compression(self) -> None:
         """
         Compress existing summary to reduce tokens.
-        
-        This is COMPRESSION (summary → smaller summary):
-        - ONLY touches summary, NOT raw_messages
-        - Does NOT update summarized_up_to_turn
         """
         if not self.state.summary:
             logger.warning("No summary to compress")
@@ -183,14 +167,12 @@ class SessionManager:
             
         logger.info("Performing summary compression")
         
-        # Compress summary (pass empty list since we're just compressing)
         compressed = compress_summary(
             old_summary=self.state.summary,
-            new_messages=[],  # No new messages, just compress
+            new_messages=[],
             llm_client=self.llm_client
         )
         
-        # Update summary only (not summarized_up_to_turn)
         self.state.summary = compressed
         self.state.last_updated = datetime.now()
         

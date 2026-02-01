@@ -34,11 +34,6 @@ def count_messages_tokens(messages: List[Message]) -> int:
     """
     Count tokens in a list of messages.
     
-    Uses the same format as OpenAI ChatCompletion API:
-    - Each message has overhead (role + formatting)
-    - 4 tokens per message for metadata
-    - 3 tokens for priming (assistant reply)
-    
     Args:
         messages: List of Message objects
         
@@ -53,7 +48,7 @@ def count_messages_tokens(messages: List[Message]) -> int:
     
     for message in messages:
         # 4 tokens per message for metadata
-        # Breakdown: <|im_start|> (1) + role_wrapper (1) + <|im_end|> (1) + newline (1)
+        # <|im_start|> (1) + role_wrapper (1) + <|im_end|> (1) + newline (1)
         num_tokens += 4
         
         # Count tokens in role

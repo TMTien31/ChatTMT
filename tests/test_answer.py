@@ -1,7 +1,3 @@
-"""
-Tests for Answer Generation Module
-"""
-
 import pytest
 from app.core.schemas import AugmentedContext, Message
 from app.modules.answer import generate_answer, generate_contextual_response
@@ -9,18 +5,14 @@ from app.llms.openai_client import OpenAIClient
 
 
 class TestAnswerGeneration:
-    """Test answer generation functionality."""
     
     @pytest.fixture
     def llm_client(self):
-        """Create OpenAI client for testing."""
         return OpenAIClient()
     
     def test_answer_with_general_knowledge(self, llm_client):
-        """Test answering general knowledge questions."""
         query = "What is Python?"
         
-        # Minimal context for general knowledge question
         augmented = AugmentedContext(
             recent_messages=[],
             memory_fields_used=[],

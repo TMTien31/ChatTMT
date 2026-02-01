@@ -1,7 +1,3 @@
-"""
-Tests for Pydantic schemas to validate structure, defaults, and serialization.
-"""
-
 import pytest
 from datetime import datetime
 from pydantic import ValidationError
@@ -21,12 +17,9 @@ from app.core.schemas import (
     PromptPayload,
 )
 
-# 1. MESSAGE SCHEMA TESTS
 class TestMessage:
-    """Test Message model validation and serialization."""
     
     def test_message_valid_user_role(self):
-        """Test creating message with user role."""
         msg = Message(role="user", content="Hello")
         assert msg.role == "user"
         assert msg.content == "Hello"

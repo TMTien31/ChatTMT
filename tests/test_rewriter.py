@@ -5,15 +5,12 @@ from app.modules.rewriter import rewrite_query
 
 
 class TestRewriter:
-    """Test query rewriting with pronoun/reference resolution."""
     
     @pytest.fixture
     def llm_client(self):
-        """Create OpenAI client for real API testing."""
         return OpenAIClient()
     
     def test_pronoun_resolution(self, llm_client):
-        """Test resolving pronouns (it/that) from recent context."""
         recent = [
             Message(role="user", content="Tell me about FastAPI"),
             Message(role="assistant", content="FastAPI is a modern Python web framework for building APIs."),
@@ -21,11 +18,9 @@ class TestRewriter:
         
         result = rewrite_query("What are its main features?", recent, llm_client)
         
-        # Should detect ambiguous pronoun "its"
         assert result.is_ambiguous == True
         assert result.original_query == "What are its main features?"
         
-        # Should resolve to FastAPI
         assert result.rewritten_query is not None
         assert "fastapi" in result.rewritten_query.lower()
         

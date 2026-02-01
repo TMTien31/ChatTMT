@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field
 class Message(BaseModel):
     """
     Single conversation message for chat history (user/assistant only).
-    System messages are NOT stored in history.
     """
     role: Literal["user", "assistant"]
     content: str
@@ -102,7 +101,6 @@ class SessionState(BaseModel):
         description="Track consecutive clarification rounds to prevent infinite loops"
     )
 
-
 # 4. QUERY UNDERSTANDING PIPELINE
 class ContextUsage(BaseModel):
     """
@@ -116,11 +114,10 @@ class ContextUsage(BaseModel):
     use_open_questions: bool = False
     use_todos: bool = False
 
-
 # Step 1: Rewrite/Paraphrase 
 class RewriteResult(BaseModel):
     """
-    Uses LIGHT CONTEXT (last N (1-3) messages) for:
+    Uses LIGHT CONTEXT (last N messages) for:
     - Resolving pronouns: "it", "that", "this"
     - Resolving references: "the above", "like before"
     
@@ -134,7 +131,7 @@ class RewriteResult(BaseModel):
     )
     referenced_messages: List[Message] = Field(
         default_factory=list,
-        description="N (1-3) recent messages used to resolve references (light context)"
+        description="N recent messages used to resolve references (light context)"
     )
     context_usage: ContextUsage = Field(
         default_factory=ContextUsage,
@@ -193,9 +190,6 @@ class Answer(BaseModel):
 
 # 6. PROMPT PAYLOAD SCHEMA
 class PromptPayload(BaseModel):
-    """
-    Debug schema for prompt inspection.
-    """
     system_prompt: str
     augmented_context: str
     user_query: str

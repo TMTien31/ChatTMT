@@ -1,5 +1,3 @@
-"""Core modules: pipeline orchestration, schemas, session management, tokenizer."""
-
 from .schemas import (
     Message,
     LLMMessage,

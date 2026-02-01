@@ -1,7 +1,3 @@
-"""
-Tests for the main chat pipeline.
-"""
-
 import pytest
 from app.core.session import SessionManager
 from app.core.pipeline import QueryPipeline, PipelineResult
@@ -10,30 +6,24 @@ from app.llms.openai_client import OpenAIClient
 
 
 class TestQueryPipeline:
-    """Test the full query pipeline flow."""
     
     @pytest.fixture
     def llm_client(self):
-        """Create OpenAI client for testing."""
         return OpenAIClient()
     
     @pytest.fixture
     def session_manager(self, llm_client):
-        """Create fresh session manager."""
         return SessionManager(llm_client=llm_client)
     
     @pytest.fixture
     def pipeline(self, session_manager, llm_client):
-        """Create pipeline with session."""
         return QueryPipeline(session_manager=session_manager, llm_client=llm_client)
     
     def test_simple_query_gets_answer(self, pipeline):
-        """Test that a simple query gets a direct answer."""
         query = "What is Python?"
         
         result = pipeline.process(query)
         
-        # Should get answer, not clarification
         assert isinstance(result, PipelineResult)
         assert result.needs_clarification == False
         assert len(result.response) > 50

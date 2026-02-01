@@ -1,8 +1,3 @@
-"""
-Tests for logging utility.
-Phase 1.4: Logger Tests
-"""
-
 import pytest
 import logging
 from pathlib import Path
@@ -11,10 +6,8 @@ from app.utils.config import reload_config
 
 
 class TestLoggerSetup:
-    """Test basic logger setup."""
     
     def test_setup_logger_default(self, monkeypatch, tmp_path):
-        """Test logger setup with default config."""
         log_file = tmp_path / "test.log"
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         monkeypatch.setenv("LOG_FILE", str(log_file))
@@ -26,7 +19,6 @@ class TestLoggerSetup:
         assert len(logger.handlers) > 0
     
     def test_setup_logger_creates_directory(self, monkeypatch, tmp_path):
-        """Test logger creates directory if it doesn't exist."""
         log_file = tmp_path / "logs" / "subdir" / "test.log"
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         reload_config()

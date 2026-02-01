@@ -7,14 +7,11 @@ from app.llms.openai_client import OpenAIClient
 class TestClarifier:
     @pytest.fixture
     def llm_client(self):
-        """OpenAI client for testing."""
         return OpenAIClient()
     
     def test_general_knowledge_no_clarification(self, llm_client):
-        """Test that general knowledge questions don't need clarification."""
         query = "What is FastAPI?"
         
-        # Context with recent chat about Python
         augmented = AugmentedContext(
             recent_messages=[
                 Message(role="user", content="I want to learn Python web frameworks"),
@@ -27,7 +24,6 @@ class TestClarifier:
         
         result = check_clarification_needed(query, augmented, llm_client)
         
-        # General knowledge question - should NOT need clarification
         assert result.needs_clarification == False
         assert len(result.clarifying_questions) == 0
     

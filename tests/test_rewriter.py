@@ -2,12 +2,14 @@ import pytest
 from app.core.schemas import Message, SessionSummary, UserProfile
 from app.llms.openai_client import OpenAIClient
 from app.modules.rewriter import rewrite_query
+from app.utils.config import reload_config
 
 
 class TestRewriter:
     
     @pytest.fixture
     def llm_client(self):
+        reload_config()
         return OpenAIClient()
     
     def test_pronoun_resolution(self, llm_client):

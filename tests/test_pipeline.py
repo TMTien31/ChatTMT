@@ -3,12 +3,14 @@ from app.core.session import SessionManager
 from app.core.pipeline import QueryPipeline, PipelineResult
 from app.core.schemas import Message, SessionSummary, UserProfile
 from app.llms.openai_client import OpenAIClient
+from app.utils.config import reload_config
 
 
 class TestQueryPipeline:
     
     @pytest.fixture
     def llm_client(self):
+        reload_config()
         return OpenAIClient()
     
     @pytest.fixture

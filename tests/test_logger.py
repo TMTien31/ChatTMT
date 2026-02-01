@@ -184,7 +184,7 @@ class TestIntegration:
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         monkeypatch.setenv("LOG_FILE", str(log_file))
         monkeypatch.setenv("LOG_LEVEL", "DEBUG")
-        reload_config()
+        reload_config(skip_dotenv=True)
         clear_loggers()
         
         logger = get_logger("test")

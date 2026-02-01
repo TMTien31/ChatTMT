@@ -2,7 +2,7 @@ import pytest
 from app.core.session import SessionManager
 from app.core.pipeline import QueryPipeline
 from app.llms.openai_client import OpenAIClient
-from app.utils.config import get_config
+from app.utils.config import reload_config, get_config
 
 config = get_config()
 
@@ -11,6 +11,7 @@ class TestE2EConversationFlow:
     
     @pytest.fixture
     def llm_client(self):
+        reload_config()
         return OpenAIClient()
     
     def test_basic_conversation_flow(self, llm_client):

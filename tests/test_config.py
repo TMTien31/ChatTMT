@@ -5,8 +5,13 @@ from app.utils.config import Config, get_config, reload_config
 
 class TestConfigDefaults:
     
-    def test_default_values(self):
-        config = Config()
+    def test_default_values(self, monkeypatch):
+        monkeypatch.delenv("OPENAI_MODEL", raising=False)
+        monkeypatch.delenv("TOKEN_THRESHOLD_RAW", raising=False)
+        monkeypatch.delenv("SUMMARY_TOKEN_THRESHOLD", raising=False)
+        monkeypatch.delenv("KEEP_RECENT_N", raising=False)
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        config = reload_config(skip_dotenv=True)
         
         assert config.OPENAI_MODEL == "gpt-4"
         assert config.OPENAI_TEMPERATURE == 0.2
@@ -95,7 +100,7 @@ class TestEnvironmentVariables:
         monkeypatch.setenv("TOKEN_THRESHOLD_RAW", "15000")
         monkeypatch.setenv("KEEP_RECENT_N", "20")
         
-        config = reload_config()
+        config = reload_config(skip_dotenv=True)
         
         assert config.OPENAI_API_KEY == "sk-custom-key"
         assert config.OPENAI_MODEL == "gpt-3.5-turbo"
@@ -105,7 +110,7 @@ class TestEnvironmentVariables:
     def test_temperature_as_float(self, monkeypatch):
         """Test temperature is parsed as float."""
         monkeypatch.setenv("OPENAI_TEMPERATURE", "0.5")
-        config = reload_config()
+        config = reload_config(skip_dotenv=True)
         
         assert config.OPENAI_TEMPERATURE == 0.5
         assert isinstance(config.OPENAI_TEMPERATURE, float)
@@ -113,12 +118,12 @@ class TestEnvironmentVariables:
     def test_boolean_parsing(self, monkeypatch):
         """Test boolean values are parsed correctly."""
         monkeypatch.setenv("LOG_TO_CONSOLE", "false")
-        config = reload_config()
+        config = reload_config(skip_dotenv=True)
         
         assert config.LOG_TO_CONSOLE is False
         
         monkeypatch.setenv("LOG_TO_CONSOLE", "True")
-        config = reload_config()
+        config = reload_config(skip_dotenv=True)
         
         assert config.LOG_TO_CONSOLE is True
 
@@ -148,9 +153,11 @@ class TestConfigUsage:
     def test_access_config_values(self, monkeypatch):
         """Test accessing config values in typical usage."""
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-        config = reload_config()
+        monkeypatch.delenv("OPENAI_MODEL", raising=False)
+        monkeypatch.delenv("TOKEN_THRESHOLD_RAW", raising=False)
+        monkeypatch.delenv("KEEP_RECENT_N", raising=False)
+        config = reload_config(skip_dotenv=True)
         
-        # Simulate usage in modules
         threshold = config.TOKEN_THRESHOLD_RAW
         assert threshold == 10000
         

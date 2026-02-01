@@ -93,8 +93,9 @@ def get_config() -> Config:
         _config = Config()
     return _config
 
-def reload_config() -> Config:
+def reload_config(skip_dotenv: bool = False) -> Config:
     global _config
-    load_dotenv(override=True)
+    if not skip_dotenv:
+        load_dotenv(override=True)
     _config = Config()
     return _config

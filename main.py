@@ -1,11 +1,3 @@
-"""
-ChatTMT - Chat Assistant with Session Memory
-
-Usage: python main.py
-
-Commands: /exit, /summary, /save, /clear
-"""
-
 import sys
 from pathlib import Path
 
@@ -88,7 +80,7 @@ def run_interactive_chat():
                 
                 elif user_input.lower() == '/save':
                     session.save()
-                    session_path = Path(config.SESSIONS_DIR) / f"{session.session_id}.json"
+                    session_path = Path(config.SESSION_DATA_DIR) / f"{session.session_id}.json"
                     print(f"\nSession saved: {session_path}\n")
                     continue
                 

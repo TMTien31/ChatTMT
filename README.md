@@ -61,10 +61,10 @@ Open `.env` and configure your settings. The file is fully commented with explan
 ### 4. Verify Installation
 
 ```bash
-# Run unit tests (fast, no API calls)
+# Run unit tests
 pytest tests/ -v --ignore=tests/test_e2e.py
 
-# Run all tests including e2e (requires API key, ~5-10 mins)
+# Run all tests including end to end
 pytest tests/ -v
 ```
 
@@ -136,45 +136,46 @@ This ensures conversations can continue indefinitely without hitting context lim
 
 #### 2. Structured Session Summary (Pydantic Schema)
 
-```python
-SessionSummary:
-├── user_profile
-│   ├── prefs          # User preferences
-│   ├── constraints    # Limitations
-│   └── background     # User context (e.g., "software engineer")
-├── current_goal       # Main objective
-├── topics             # Key entities discussed
-├── key_facts          # Important information extracted
-├── decisions          # Decisions made during session
-├── open_questions     # Unresolved questions
-└── todos              # Action items to follow up
-```
+The summary is **not just a text blob** - it's a structured JSON schema that allows selective retrieval of relevant context.
 
-The summary is **not just a text blob** - it's a structured JSON that allows selective retrieval of relevant context.
+```json
+{
+  "user_profile": {
+    "prefs": [],           // User preferences (e.g., "detailed explanations")
+    "constraints": [],     // User limitations (e.g., "beginner level")
+    "background": ""       // User context (e.g., "software engineer")
+  },
+  "current_goal": "",      // Main objective in this session
+  "topics": [],            // Key entities/subjects discussed
+  "key_facts": [],         // Important information extracted
+  "decisions": [],         // Decisions made during session
+  "open_questions": [],    // Unresolved questions
+  "todos": []              // Action items to follow up
+}
+```
 
 #### 3. Intelligent Context Augmentation
 
-The Rewriter module decides which memory fields are relevant:
+The Rewriter module decides which memory fields are relevant for the current query. This **selective augmentation** prevents context pollution and keeps prompts focused.
 
-```python
-ContextUsage:
-├── use_user_profile    # Include user preferences?
-├── use_current_goal    # Include main objective?
-├── use_topics          # Include discussed topics?
-├── use_key_facts       # Include important facts?
-├── use_decisions       # Include past decisions?
-├── use_open_questions  # Include pending questions?
-└── use_todos           # Include action items?
+```json
+{
+  "use_user_profile": false,    // Include user preferences?
+  "use_current_goal": false,    // Include main objective?
+  "use_topics": false,          // Include discussed topics?
+  "use_key_facts": false,       // Include important facts?
+  "use_decisions": false,       // Include past decisions?
+  "use_open_questions": false,  // Include pending questions?
+  "use_todos": false            // Include action items?
+}
 ```
-
-This **selective augmentation** prevents context pollution and keeps prompts focused.
 
 #### 4. Query Understanding Pipeline
 
 ```
 Original Query: "What about the other one?"
                      ↓
-[Rewriter] - Uses last 8 messages (light context)
+[Rewriter] - Uses last N messages (light context)
            - Resolves: "other one" → "React framework"
                      ↓
 Rewritten: "What about the React framework?"
@@ -222,9 +223,11 @@ ChatTMT/
 │       ├── logger.py      # Logging setup
 │       └── tokenizer.py   # Token counting (tiktoken)
 ├── data/sessions/      # Saved session files
+├── logs/               # Application logs
 ├── tests/              # Test suite (123 tests)
-├── .env.example        # Environment template
-└── requirements.txt    # Dependencies
+├── .env.example        # Environment template (copy to .env)
+├── requirements.txt    # Dependencies
+└── main.py             # CLI entry point
 ```
 
 ---
@@ -234,7 +237,7 @@ ChatTMT/
 ### Assumptions
 
 1. **OpenAI API Access**: Requires a valid OpenAI API key with access to the configured model
-2. **Model Compatibility**: Designed for GPT-4 class models; may work with GPT-3.5 but not optimized
+2. **Model Compatibility**: Designed for GPT class models
 3. **Single User**: Each session assumes a single user; no multi-user support
 4. **Text Only**: Handles text conversations only; no image/audio support
 
@@ -243,17 +246,7 @@ ChatTMT/
 1. **No RAG/External Knowledge**: Does not retrieve external documents; relies only on conversation context and LLM knowledge
 2. **No Streaming**: Responses are returned in full (no token-by-token streaming)
 3. **Session Isolation**: Sessions are independent; no cross-session memory
-4. **Token Estimation**: Uses tiktoken for GPT-4 encoding; may vary slightly for other models
+4. **Token Estimation**: Uses tiktoken for count tokens; may vary slightly for other models
 5. **Summarization Quality**: Summary quality depends on LLM; very long or complex conversations may lose nuance
 
-### Cost Considerations
-
-- Summarization and compression use additional API calls
-- E2E tests consume approximately $1-2 in API costs
-- For cost-effective testing, use `--ignore=tests/test_e2e.py`
-
 ---
-
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.

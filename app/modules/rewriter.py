@@ -57,6 +57,11 @@ def rewrite_query(
     # Build RewriteResult
     result = _dict_to_rewrite_result(data, query, recent_messages)
     
+    # Skip redundant rewrites (if rewritten is same as original)
+    if result.rewritten_query and result.rewritten_query.strip() == query.strip():
+        logger.debug("Rewritten query is identical to original, skipping rewrite")
+        result.rewritten_query = None
+    
     if result.rewritten_query:
         logger.info(f"Rewrite: '{query}' → '{result.rewritten_query}'")
     else:
@@ -97,7 +102,7 @@ def _build_rewrite_prompt(
         summary_text += f"- Topics discussed: {', '.join(summary.topics) if summary.topics else 'None'}\n"
         summary_text += f"- User preferences: {', '.join(summary.user_profile.prefs) if summary.user_profile.prefs else 'None'}\n"
     
-    prompt = f"""You are a query understanding assistant. Your task is to:
+    prompt = f"""You are a query analysis specialist. Your task is to:
 
               1. **Detect if query is AMBIGUOUS** (contains pronouns/references needing resolution)
               2. **Rewrite query** if ambiguous by resolving pronouns using RECENT CONVERSATION
@@ -117,22 +122,22 @@ def _build_rewrite_prompt(
               **is_ambiguous = FALSE** if query:
               - Is self-contained and clear (e.g., "What is Python?", "How to install FastAPI?")
               - Asks about NEW topic unrelated to recent conversation
+              - Meta-queries about session state: "Who am I?", "What is my goal?", "What did we discuss?"
               - Contains all necessary information to answer
 
               **rewritten_query**:
               - If is_ambiguous=true AND can resolve from RECENT CONVERSATION: provide resolved query
               - If is_ambiguous=true BUT cannot resolve (empty context): set to null
-              - If is_ambiguous=false: set to null
+              - If is_ambiguous=false: ALWAYS set to null (no rewriting needed)
 
               **context_usage flags**: Set to TRUE if query needs that information to answer properly:
-              - use_current_goal: Query about continuing work, next steps, "where we left off"
-              - use_topics: Query needs to know what was discussed before
-              - use_todos: Query about tasks, what to do next
-              - use_decisions: Query about past choices, "should I use that approach"
+              - use_current_goal: Query about continuing work, next steps, "where we left off", "what is my goal"
+              - use_topics: Query needs to know what was discussed before, "what have we talked about"
+              - use_todos: Query about tasks, what to do next, "what should I do"
+              - use_decisions: Query about past choices, "should I use that approach", "what did I decide"
               - use_key_facts: Query needs specific facts from history
-              - use_user_profile: Query needs user's background/preferences
-              - use_open_questions: Query about outstanding questions
-                - use_todos: User's todo list needed?
+              - use_user_profile: Query about user's identity, background, preferences, "who am I", "what is my background"
+              - use_open_questions: Query about outstanding questions, "what did you ask me"
 
               OUTPUT FORMAT (JSON):
               {{
@@ -174,6 +179,18 @@ def _build_rewrite_prompt(
               Recent: "USER: Is Django or FastAPI better?\\nASSISTANT: FastAPI is better for modern APIs..."
               Analysis: "that approach" = FastAPI, also needs decision history
               Output: {{"is_ambiguous": true, "rewritten_query": "Should I use FastAPI?", "context_usage": {{"use_user_profile": false, "use_current_goal": false, "use_topics": false, "use_key_facts": false, "use_decisions": true, "use_open_questions": false, "use_todos": false}}}}
+
+              Example 5: Meta-query about session state
+              Query: "Tôi là ai và đang có mục tiêu là gì nhỉ"
+              Recent: (any)
+              Analysis: Self-contained meta-query asking about stored user info. NOT ambiguous because it's clear what's being asked. Needs user_profile and current_goal from memory to answer.
+              Output: {{"is_ambiguous": false, "rewritten_query": null, "context_usage": {{"use_user_profile": true, "use_current_goal": true, "use_topics": false, "use_key_facts": false, "use_decisions": false, "use_open_questions": false, "use_todos": false}}}}
+
+              Example 6: Another meta-query variant
+              Query: "Summarize what we've talked about"
+              Recent: (any)
+              Analysis: Asking for session summary. NOT ambiguous, needs topics and key_facts.
+              Output: {{"is_ambiguous": false, "rewritten_query": null, "context_usage": {{"use_user_profile": false, "use_current_goal": false, "use_topics": true, "use_key_facts": true, "use_decisions": false, "use_open_questions": false, "use_todos": false}}}}
 
               Now analyze the CURRENT USER QUERY above and output ONLY valid JSON, nothing else."""
     

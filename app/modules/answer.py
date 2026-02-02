@@ -66,7 +66,7 @@ def _build_answer_prompt(
     
     context_text = augmented_context.final_augmented_context
     
-    prompt = f"""You are a helpful AI assistant with access to conversation history and user memory.
+    prompt = f"""You are a knowledgeable assistant helping users by leveraging conversation history and context.
 
                 CRITICAL: You MUST read and use the context provided below. DO NOT ask for information that is already in the context.
 

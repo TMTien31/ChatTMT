@@ -85,7 +85,7 @@ def _build_clarification_prompt(
     # Format augmented context for prompt
     context_text = augmented_context.final_augmented_context
     
-    prompt = f"""You are a clarification decision assistant. Your task is to determine whether you have ENOUGH INFORMATION to answer the user's query, or if you need to ask clarifying questions.
+    prompt = f"""You are a clarification specialist. Your task is to determine whether you have ENOUGH INFORMATION to answer the user's query, or if you need to ask clarifying questions.
 
             **IMPORTANT: Default to answering. Only ask clarifying questions when CRITICAL information is missing.**
 

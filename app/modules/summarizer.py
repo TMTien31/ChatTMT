@@ -105,7 +105,7 @@ def _build_summarization_prompt(messages: List[Message], existing_summary: Optio
     if existing_summary:
         existing_context = f"\n\nEXISTING SUMMARY:\n{_summary_to_text(existing_summary)}\n"
     
-    prompt = f"""You are an expert at summarizing conversations. 
+    prompt = f"""You are a conversation summarization expert. 
               Analyze the following conversation and extract structured information.{existing_context}
 
               CONVERSATION TO SUMMARIZE:
@@ -136,7 +136,7 @@ def _build_compression_prompt(old_summary: SessionSummary, new_messages: List[Me
     old_text = _summary_to_text(old_summary)
     new_text = "\n".join([f"{msg.role.upper()}: {msg.content}" for msg in new_messages])
     
-    prompt = f"""You are an expert at compressing and updating conversation summaries.
+    prompt = f"""You are a summary compression specialist.
 
               OLD SUMMARY:
               {old_text}

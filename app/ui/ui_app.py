@@ -69,14 +69,24 @@ def format_timestamp(iso_string: Optional[str]) -> str:
         else:
             return dt.strftime("%b %d, %Y")
     except Exception:
-        return "Unknown"
+        return ""
 
 
 def format_session_name(session_id: str, metadata: dict) -> str:
     turns = metadata.get('total_turns', 0)
-    time_str = format_timestamp(metadata.get('last_activity'))
-    short_id = session_id[:8]
-    return f"{short_id} • {turns} turns • {time_str}"
+    # Use first 12 chars of session ID for better readability
+    short_id = session_id[:12]
+    
+    # Get first topic if available
+    summary = metadata.get('summary', {})
+    topics = summary.get('topics', [])
+    topic_preview = topics[0] if topics else ''
+    
+    if topic_preview:
+        # 26 chars for topic name (previously 20 + 6 from removed timestamp)
+        return f"Topic_{topic_preview[:26]} • {turns} turns"
+    else:
+        return f"{short_id} • {turns} turns"
 
 
 def initialize_session_state():
@@ -177,17 +187,6 @@ def main():
         st.text(f"Turns: {session.total_turns}")
         st.text(f"Created: {format_timestamp(session.state.created_at.isoformat())}")
         
-        if session.summary and (session.summary.topics or session.summary.key_facts):
-            with st.expander("Summary", expanded=False):
-                if session.summary.topics:
-                    st.caption("Topics:")
-                    for topic in session.summary.topics[:3]:
-                        st.markdown(f"- {topic}")
-                if session.summary.key_facts:
-                    st.caption("Key Facts:")
-                    for fact in session.summary.key_facts[:3]:
-                        st.markdown(f"- {fact}")
-        
         if st.button("Save Session", use_container_width=True):
             session.save()
             st.success("Session saved!")
@@ -206,20 +205,7 @@ def main():
             
             if session.summary:
                 st.subheader("Summary Schema")
-                summary_dict = {
-                    "topics": session.summary.topics,
-                    "key_facts": session.summary.key_facts,
-                    "decisions": session.summary.decisions,
-                    "current_goal": session.summary.current_goal,
-                    "open_questions": session.summary.open_questions,
-                    "todos": session.summary.todos,
-                    "user_profile": {
-                        "background": session.summary.user_profile.background,
-                        "preferences": session.summary.user_profile.preferences,
-                        "expertise": session.summary.user_profile.expertise,
-                    } if session.summary.user_profile else None
-                }
-                st.json(summary_dict)
+                st.code(json.dumps(session.summary.model_dump(), indent=2, ensure_ascii=False), language="json")
             else:
                 st.info("No summary yet (conversation too short)")
         
@@ -255,9 +241,6 @@ def main():
                 st.info("Only current session exists")
         else:
             st.info("No saved sessions yet")
-        
-        st.markdown("---")
-        st.caption("Built with OpenAI & Streamlit")
     
     st.title("Chat with ChatTMT")
     

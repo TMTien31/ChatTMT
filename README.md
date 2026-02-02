@@ -129,10 +129,10 @@ User Query → QueryPipeline → Response
 
 | Trigger | Action | Effect |
 |---------|--------|--------|
-| `raw_messages` > 3000 tokens | **Summarization** | Messages → Structured Summary |
-| `summary` > 800 tokens | **Compression** | Summary → Smaller Summary |
+| `raw_messages` exceeds threshold | **Summarization** | Messages → Structured Summary |
+| `summary` exceeds threshold | **Compression** | Summary → Smaller Summary |
 
-This ensures conversations can continue indefinitely without hitting context limits.
+This ensures conversations can continue indefinitely without hitting context limits. Thresholds are configurable in `.env`.
 
 #### 2. Structured Session Summary (Pydantic Schema)
 

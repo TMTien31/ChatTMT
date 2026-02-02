@@ -33,21 +33,36 @@ def summarize_messages(
         max_tokens=config.SUMMARIZER_MAX_TOKENS
     )
     
-    # Parse response
+    # Parse response (handle markdown code blocks)
     try:
+        # Try direct parse first
         summary_dict = json.loads(response)
         logger.debug("Successfully parsed LLM response")
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse LLM response: {e}")
-        summary_dict = {
-            "user_profile": {"prefs": [], "constraints": [], "background": None},
-            "current_goal": None,
-            "topics": [],
-            "key_facts": [],
-            "decisions": [],
-            "open_questions": [],
-            "todos": []
-        }
+    except json.JSONDecodeError:
+        # Try extracting JSON from markdown code block
+        try:
+            # Remove markdown code fences
+            if "```json" in response:
+                json_str = response.split("```json")[1].split("```")[0].strip()
+            elif "```" in response:
+                json_str = response.split("```")[1].split("```")[0].strip()
+            else:
+                json_str = response.strip()
+            
+            summary_dict = json.loads(json_str)
+            logger.debug("Successfully parsed LLM response from markdown")
+        except (json.JSONDecodeError, IndexError) as e:
+            logger.error(f"Failed to parse LLM response: {e}")
+            logger.error(f"Response was: {response[:200]}...")
+            summary_dict = {
+                "user_profile": {"prefs": [], "constraints": [], "background": None},
+                "current_goal": None,
+                "topics": [],
+                "key_facts": [],
+                "decisions": [],
+                "open_questions": [],
+                "todos": []
+            }
     
     # Convert to SessionSummary
     summary = _dict_to_session_summary(summary_dict)
@@ -81,14 +96,29 @@ def compress_summary(
         max_tokens=config.SUMMARIZER_MAX_TOKENS
     )
     
-    # Parse response
+    # Parse response (handle markdown code blocks)
     try:
+        # Try direct parse first
         summary_dict = json.loads(response)
         logger.debug("Successfully parsed compression response")
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse compression response: {e}")
-        # Return old summary as fallback
-        return old_summary
+    except json.JSONDecodeError:
+        # Try extracting JSON from markdown code block
+        try:
+            # Remove markdown code fences
+            if "```json" in response:
+                json_str = response.split("```json")[1].split("```")[0].strip()
+            elif "```" in response:
+                json_str = response.split("```")[1].split("```")[0].strip()
+            else:
+                json_str = response.strip()
+            
+            summary_dict = json.loads(json_str)
+            logger.debug("Successfully parsed compression response from markdown")
+        except (json.JSONDecodeError, IndexError) as e:
+            logger.error(f"Failed to parse compression response: {e}")
+            logger.error(f"Response was: {response[:200]}...")
+            # Return old summary as fallback
+            return old_summary
     
     # Convert to SessionSummary
     compressed_summary = _dict_to_session_summary(summary_dict)

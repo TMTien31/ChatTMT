@@ -13,6 +13,7 @@ from app.core.session import SessionManager
 from app.core.pipeline import QueryPipeline
 from app.llms.openai_client import OpenAIClient
 from app.utils.config import get_config
+from app.utils.tokenizer import count_tokens
 
 config = get_config()
 
@@ -73,20 +74,15 @@ def format_timestamp(iso_string: Optional[str]) -> str:
 
 
 def format_session_name(session_id: str, metadata: dict) -> str:
-    turns = metadata.get('total_turns', 0)
-    # Use first 12 chars of session ID for better readability
-    short_id = session_id[:12]
-    
     # Get first topic if available
     summary = metadata.get('summary', {})
     topics = summary.get('topics', [])
     topic_preview = topics[0] if topics else ''
     
     if topic_preview:
-        # 26 chars for topic name (previously 20 + 6 from removed timestamp)
-        return f"Topic_{topic_preview[:26]} • {turns} turns"
+        return topic_preview[:80]
     else:
-        return f"{short_id} • {turns} turns"
+        return session_id[:12]
 
 
 def initialize_session_state():
@@ -208,6 +204,48 @@ def main():
                 st.code(json.dumps(session.summary.model_dump(), indent=2, ensure_ascii=False), language="json")
             else:
                 st.info("No summary yet (conversation too short)")
+            
+            st.markdown("---")
+            
+            # Token Usage and Thresholds
+            st.subheader("Token Usage & Thresholds")
+            
+            # Calculate token counts
+            raw_text = " ".join(m.content for m in session.raw_messages)
+            raw_tokens = count_tokens(raw_text)
+            
+            summary_tokens = 0
+            if session.summary:
+                summary_text = session.summary.model_dump_json()
+                summary_tokens = count_tokens(summary_text)
+            
+            # Display with progress bars
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.metric("History Tokens", f"{raw_tokens:,}")
+                history_ratio = min(raw_tokens / config.TOKEN_THRESHOLD_RAW, 1.0)
+                st.progress(history_ratio, text=f"Threshold: {config.TOKEN_THRESHOLD_RAW:,}")
+                
+                if raw_tokens > config.TOKEN_THRESHOLD_RAW:
+                    st.warning(f"⚠️ Exceeded by {raw_tokens - config.TOKEN_THRESHOLD_RAW:,}")
+                else:
+                    remaining = config.TOKEN_THRESHOLD_RAW - raw_tokens
+                    st.success(f"✓ {remaining:,} tokens remaining")
+            
+            with col2:
+                st.metric("Summary Tokens", f"{summary_tokens:,}")
+                if summary_tokens > 0:
+                    summary_ratio = min(summary_tokens / config.SUMMARY_TOKEN_THRESHOLD, 1.0)
+                    st.progress(summary_ratio, text=f"Threshold: {config.SUMMARY_TOKEN_THRESHOLD:,}")
+                    
+                    if summary_tokens > config.SUMMARY_TOKEN_THRESHOLD:
+                        st.warning(f"⚠️ Exceeded by {summary_tokens - config.SUMMARY_TOKEN_THRESHOLD:,}")
+                    else:
+                        remaining = config.SUMMARY_TOKEN_THRESHOLD - summary_tokens
+                        st.success(f"✓ {remaining:,} tokens remaining")
+                else:
+                    st.info("No summary yet")
         
         st.markdown("---")
         

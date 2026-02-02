@@ -1,325 +1,322 @@
+"""
+E2E Test - Generate 3 conversation logs demonstrating:
+1. Session memory being triggered (summarization after 10k+ tokens)
+2. Ambiguous user queries
+
+Topics:
+- Conversation 1: Web Development (English)
+- Conversation 2: Economics & Finance (English)  
+- Conversation 3: Vietnamese History & Culture (Vietnamese)
+
+Run: pytest tests/test_e2e.py -v -s
+Output: data/sessions/*.json
+"""
 import pytest
 from app.core.session import SessionManager
 from app.core.pipeline import QueryPipeline
 from app.llms.openai_client import OpenAIClient
-from app.utils.config import reload_config, get_config
+from app.utils.config import get_config
 
 config = get_config()
 
 
-class TestE2EConversationFlow:
+class TestConversationLogs:
+    """Generate 3 conversation logs for assignment submission."""
     
     @pytest.fixture
     def llm_client(self):
+        # Force reload config from .env to avoid mock keys from other tests
+        from app.utils.config import reload_config
         reload_config()
         return OpenAIClient()
     
-    def test_basic_conversation_flow(self, llm_client):
-        session = SessionManager(llm_client=llm_client)
-        pipeline = QueryPipeline(session, llm_client)
-        
-        result = pipeline.process_and_record("I want to build a REST API")
-        assert not result.needs_clarification
-        assert session.total_turns == 1
-        
-        # Turn 2: Follow-up using context
-        result = pipeline.process_and_record("What framework should I use for it?")
-        # Only increment if no clarification
-        expected_turns = 2 if not result.needs_clarification else 1
-        assert session.total_turns == expected_turns
-        
-        # Turn 3: More specific question
-        result = pipeline.process_and_record("I prefer Python. Any recommendations?")
-        if not result.needs_clarification:
-            expected_turns += 1
-        
-        # Turn 4: Technical question
-        result = pipeline.process_and_record("How do I handle authentication?")
-        if not result.needs_clarification:
-            expected_turns += 1
-        
-        # Turn 5: Implementation details
-        result = pipeline.process_and_record("Show me an example")
-        if not result.needs_clarification:
-            expected_turns += 1
-        
-        # Should NOT have triggered summarization yet
-        assert session.summary is None
-        assert session.total_turns >= 3  # At least some turns recorded
-        
-        # Save session for inspection
-        session.save()
-        
-        print(f"\n✅ Completed conversation flow, no summarization triggered")
-        print(f"   Total turns recorded: {session.total_turns}")
-        print(f"   Total messages: {len(session.raw_messages)}")
-        print(f"   📁 Session saved: {session.session_id}.json")
-    
-    def test_summarization_trigger(self, llm_client):
+    def test_conversation_1_web_development(self, llm_client):
         """
-        Test that summarization triggers when token threshold exceeded.
+        Topic: Web Development with FastAPI
+        Language: English
+        Features: Summarization trigger, ambiguous queries, context references
         
-        This simulates Turn 1-20 from COMPREHENSIVE_EXAMPLE.md
-        
-        Cost: ~$0.50-0.80 (20+ turns + summarization)
+        Expected output: ~20+ turns, session memory triggered
         """
         session = SessionManager(llm_client=llm_client)
         pipeline = QueryPipeline(session, llm_client)
         
-        # Simulate conversation building up to threshold
-        # Each turn adds ~200-500 tokens
         queries = [
+            # Phase 1: Project setup (turns 1-5)
             "I want to build an e-commerce platform with REST API",
-            "What programming language should I use?",
-            "I prefer Python. Which framework is best?",
-            "Tell me about FastAPI vs Django REST Framework",
-            "I'll use FastAPI. How do I set up the project?",
+            "What programming language should I use for it?",
+            "I prefer Python. Which framework is best for building APIs?",
+            "Tell me more about FastAPI vs Django REST Framework",
+            "I'll go with FastAPI. How do I set up the initial project structure?",
+            
+            # Phase 2: Database (turns 6-10)
             "What database should I use for this project?",
             "PostgreSQL sounds good. How do I integrate it with FastAPI?",
-            "Explain SQLAlchemy ORM usage",
-            "How do I handle database migrations?",
-            "What about authentication and authorization?",
+            "Can you explain SQLAlchemy ORM usage in more detail?",
+            "How do I handle database migrations with it?",  # Ambiguous: "it" refers to SQLAlchemy
+            "What about that migration tool you mentioned?",  # Ambiguous: refers to previous answer
+            
+            # Phase 3: Authentication (turns 11-15)
+            "Now I need to add authentication. What are my options?",
             "Should I use JWT tokens?",
             "How do I implement JWT authentication in FastAPI?",
-            "What about password hashing?",
+            "What about password hashing?",  # Ambiguous: context-dependent
+            "Can you show me an example of that?",  # Ambiguous: refers to password hashing
+            
+            # Phase 4: API Design (turns 16-20)
             "Tell me about API versioning best practices",
-            "How do I handle CORS?",
+            "How do I handle CORS in my application?",  # Ambiguous: "my application" needs context
             "What about rate limiting?",
+            "How do I implement the first one?",  # Ambiguous: refers to a rate limiting method
             "Should I use Docker for deployment?",
-            "How do I write Dockerfile for FastAPI?",
+            
+            # Phase 5: Advanced topics (turns 21-25) - Trigger summarization
             "What about docker-compose for PostgreSQL?",
+            "How do I set up CI/CD for this project?",
+            "Can you explain the deployment strategy you mentioned earlier?",  # Ambiguous: context reference
+            "What about monitoring and logging?",
+            """
+            Can you provide a comprehensive guide on implementing 
+            production-ready authentication with JWT tokens, including 
+            token refresh mechanisms, secure password storage with bcrypt, 
+            role-based access control, and best practices for API security?
+            """,
         ]
         
-        # Process queries (Turn 1-19)
+        print(f"\n{'='*60}")
+        print("CONVERSATION 1: Web Development (English)")
+        print(f"{'='*60}")
+        
         for i, query in enumerate(queries, 1):
             result = pipeline.process_and_record(query)
-            print(f"Turn {i}: {len(session.raw_messages)} messages, "
-                  f"summary={'Yes' if session.summary else 'No'}")
+            status = "✓" if not result.needs_clarification else "? (clarification)"
+            print(f"Turn {i:2d}: {status} | Messages: {len(session.raw_messages):2d} | Summary: {'Yes' if session.summary else 'No'}")
         
-        # Should NOT have summarized yet (if under threshold)
-        messages_before = len(session.raw_messages)
-        summary_before = session.summary
-        
-        # Turn 20: Add one more query that pushes over threshold
-        # Use a longer query to increase token count
-        long_query = """
-        Can you provide a comprehensive guide on implementing 
-        production-ready authentication with JWT tokens, including 
-        token refresh mechanisms, secure password storage with bcrypt, 
-        role-based access control, and best practices for API security?
-        """
-        
-        result = pipeline.process_and_record(long_query)
-        
-        # Check if summarization happened (depends on actual token count)
-        if session.summary is not None and summary_before is None:
-            print(f"\n✅ Summarization triggered!")
-            print(f"   Messages before: {messages_before}")
-            print(f"   Messages after: {len(session.raw_messages)}")
-            print(f"   Kept recent N: {config.KEEP_RECENT_N}")
-            
-            # Verify summarization behavior
-            assert session.summary is not None
-            assert session.summarized_up_to_turn == 20
-            assert len(session.raw_messages) <= config.KEEP_RECENT_N + 2  # +2 for Turn 20
-            
-            # Summary should contain key information
-            assert session.summary.topics  # Should have extracted topics
-            assert session.summary.current_goal  # Should have goal
-        else:
-            print(f"\n⚠️  Summarization NOT triggered (tokens still under threshold)")
-            print(f"   Messages: {len(session.raw_messages)}")
-        
-        # Save session for inspection
-        session.save()
-        print(f"\n📁 Session saved: {session.session_id}.json")
-        print(f"   Total turns: {session.total_turns}")
-    
-    def test_clarification_max_rounds(self, llm_client):
-        """
-        Test clarification loop with MAX_CLARIFICATION_ROUNDS.
-        
-        Cost: ~$0.05-0.10 (2-3 turns)
-        """
-        session = SessionManager(llm_client=llm_client)
-        pipeline = QueryPipeline(session, llm_client)
-        
-        # Round 1: Vague query
-        result = pipeline.process("help")
-        
-        if result.needs_clarification:
-            print(f"\nRound 1: Needs clarification")
-            assert session.clarification_count == 1
-            
-            # Round 2: Still vague
-            result = pipeline.process("anything")
-            
-            if result.needs_clarification:
-                print(f"Round 2: Still needs clarification")
-                assert session.clarification_count == 2
-                
-                # Round 3: Should force answer after max rounds
-                result = pipeline.process("just help me")
-                
-                # Should NOT ask clarification again (forced answer)
-                assert not result.needs_clarification
-                assert session.clarification_count == 0  # Reset after forced answer
-                assert len(result.response) > 0
-                
-                print(f"Round 3: Forced answer after max rounds")
-                print(f"✅ Clarification loop handled correctly")
-            else:
-                print(f"Round 2: Got answer (query became clearer)")
-        else:
-            print(f"Round 1: Query clear enough, got answer directly")
+        # Verify requirements
+        print(f"\n{'='*40}")
+        print("VERIFICATION:")
+        print(f"  Total turns: {session.total_turns}")
+        print(f"  Total messages: {len(session.raw_messages)}")
+        print(f"  Summary triggered: {session.summary is not None}")
+        if session.summary:
+            print(f"  Summarized up to turn: {session.summarized_up_to_turn}")
+            print(f"  Topics: {session.summary.topics[:3]}...")
         
         # Save session
         session.save()
-        print(f"\n📁 Session saved: {session.session_id}.json")
-    
-    def test_context_continuity_after_summarization(self, llm_client):
-        """
-        Test that context remains accessible after summarization.
+        print(f"\n📁 Saved: data/sessions/{session.session_id}.json")
         
-        Cost: ~$0.30-0.50 (10-15 turns)
+        # Assertions
+        assert session.total_turns >= 20, "Should have at least 20 turns"
+        assert session.summary is not None, "Summarization should have triggered"
+    
+    def test_conversation_2_economics_finance(self, llm_client):
+        """
+        Topic: Economics & Personal Finance
+        Language: English
+        Features: Summarization trigger, ambiguous queries, topic switches
+        
+        Expected output: ~20+ turns, session memory triggered
         """
         session = SessionManager(llm_client=llm_client)
         pipeline = QueryPipeline(session, llm_client)
         
-        # Establish context
-        pipeline.process_and_record("I'm using Python with FastAPI framework")
-        pipeline.process_and_record("I also chose PostgreSQL as my database")
-        pipeline.process_and_record("And I'm deploying with Docker")
+        queries = [
+            # Phase 1: Basic concepts (turns 1-5)
+            "I want to learn about investing. Where should I start?",
+            "What's the difference between stocks and bonds?",
+            "Which one is better for beginners?",  # Ambiguous: refers to stocks vs bonds
+            "Tell me more about that option",  # Ambiguous: needs context
+            "How do I actually buy them?",  # Ambiguous: stocks or bonds?
+            
+            # Phase 2: Stock market (turns 6-10)
+            "Explain how the stock market works",
+            "What are the major stock exchanges?",
+            "How do I analyze stocks before buying?",
+            "What about that ratio you mentioned?",  # Ambiguous: P/E ratio or other?
+            "Can you give me an example using a real company?",
+            
+            # Phase 3: Investment strategies (turns 11-15)
+            "What investment strategies should I consider?",
+            "Explain dollar-cost averaging in detail",
+            "How does it compare to the other strategy?",  # Ambiguous: which other strategy?
+            "What about diversification?",
+            "How should I balance it?",  # Ambiguous: portfolio balance
+            
+            # Phase 4: Risk & returns (turns 16-20)
+            "How do I calculate investment returns?",
+            "What about compound interest?",
+            "Can you show me the formula for that?",  # Ambiguous: compound interest formula
+            "What risks should I be aware of?",
+            "How do I mitigate those?",  # Ambiguous: which risks specifically
+            
+            # Phase 5: Advanced topics (turns 21-25) - Trigger summarization
+            "Tell me about index funds vs mutual funds",
+            "What are ETFs and how do they differ?",
+            "Which one would you recommend for my situation?",  # Ambiguous: needs context
+            "What about tax implications of investing?",
+            """
+            Can you provide a comprehensive investment plan for a beginner 
+            with $10,000 to invest, considering risk tolerance, diversification,
+            tax efficiency, and long-term wealth building strategies including
+            retirement accounts, index funds, and emergency fund allocation?
+            """,
+        ]
         
-        # Manually trigger summarization to test continuity
-        if session.total_turns >= 3:
-            from app.modules.summarizer import summarize_messages
+        print(f"\n{'='*60}")
+        print("CONVERSATION 2: Economics & Finance (English)")
+        print(f"{'='*60}")
+        
+        for i, query in enumerate(queries, 1):
+            result = pipeline.process_and_record(query)
+            status = "✓" if not result.needs_clarification else "? (clarification)"
+            print(f"Turn {i:2d}: {status} | Messages: {len(session.raw_messages):2d} | Summary: {'Yes' if session.summary else 'No'}")
+        
+        # Verify requirements
+        print(f"\n{'='*40}")
+        print("VERIFICATION:")
+        print(f"  Total turns: {session.total_turns}")
+        print(f"  Total messages: {len(session.raw_messages)}")
+        print(f"  Summary triggered: {session.summary is not None}")
+        if session.summary:
+            print(f"  Summarized up to turn: {session.summarized_up_to_turn}")
+            print(f"  Topics: {session.summary.topics[:3]}...")
+        
+        # Save session
+        session.save()
+        print(f"\n📁 Saved: data/sessions/{session.session_id}.json")
+        
+        # Assertions
+        assert session.total_turns >= 20, "Should have at least 20 turns"
+        assert session.summary is not None, "Summarization should have triggered"
+    
+    def test_conversation_3_vietnamese_history_culture(self, llm_client):
+        """
+        Topic: Vietnamese History & Culture
+        Language: Vietnamese
+        Features: Summarization trigger, ambiguous queries, cultural context
+        
+        Expected output: ~20+ turns, session memory triggered
+        """
+        session = SessionManager(llm_client=llm_client)
+        pipeline = QueryPipeline(session, llm_client)
+        
+        queries = [
+            # Giai đoạn 1: Lịch sử Việt Nam (turns 1-5)
+            "Tôi muốn tìm hiểu về lịch sử Việt Nam. Nên bắt đầu từ đâu?",
+            "Kể cho tôi về thời kỳ Hùng Vương và nguồn gốc dân tộc Việt",
+            "Thời kỳ đó kéo dài bao lâu?",  # Ambiguous: thời kỳ nào?
+            "Còn về truyền thuyết Con Rồng Cháu Tiên thì sao?",
+            "Nó có ý nghĩa gì với người Việt?",  # Ambiguous: "nó" là gì?
             
-            # Create summary
-            session.state.summary = summarize_messages(
-                messages=session.raw_messages,
-                llm_client=llm_client
-            )
-            session.state.summarized_up_to_turn = session.total_turns
+            # Giai đoạn 2: Các triều đại (turns 6-10)
+            "Hãy kể về các triều đại phong kiến Việt Nam",
+            "Triều đại nào hùng mạnh nhất?",
+            "Tại sao bạn cho rằng như vậy?",  # Ambiguous: cần ngữ cảnh
+            "Còn về triều Nguyễn thì sao?",
+            "Vị vua nào nổi tiếng nhất trong triều đó?",  # Ambiguous: triều nào?
             
-            # Keep only recent messages
-            session.state.raw_messages = session.raw_messages[-config.KEEP_RECENT_N:]
+            # Giai đoạn 3: Văn hóa (turns 11-15)
+            "Giờ tôi muốn tìm hiểu về văn hóa Việt Nam",
+            "Những lễ hội truyền thống quan trọng nhất là gì?",
+            "Kể chi tiết về cái đầu tiên",  # Ambiguous: lễ hội nào?
+            "Ý nghĩa của nó là gì?",  # Ambiguous: lễ hội hay phong tục?
+            "Còn về Tết Nguyên Đán thì sao?",
             
-            print(f"\n📝 Manual summarization performed")
-            print(f"   Summary topics: {session.summary.topics}")
-            print(f"   Summary decisions: {session.summary.decisions}")
+            # Giai đoạn 4: Nghệ thuật (turns 16-20)
+            "Nghệ thuật truyền thống Việt Nam có gì đặc biệt?",
+            "Hát chèo và cải lương khác nhau như thế nào?",
+            "Cái nào phổ biến hơn ở miền nào?",  # Ambiguous: chèo hay cải lương?
+            "Còn về tranh Đông Hồ thì sao?",
+            "Nó được làm như thế nào?",  # Ambiguous: "nó" là gì?
             
-            # Now query using established context
-            result = pipeline.process("What was my tech stack again?")
-            
-            # Answer should reference FastAPI, PostgreSQL, Docker from summary
-            answer_lower = result.response.lower()
-            context_mentioned = (
-                "fastapi" in answer_lower or
-                "postgresql" in answer_lower or
-                "postgres" in answer_lower or
-                "docker" in answer_lower or
-                "python" in answer_lower
-            )
-            
-            if context_mentioned:
-                print(f"✅ Context continuity maintained after summarization")
-                print(f"   Answer referenced previous tech stack")
-            else:
-                print(f"⚠️  Answer may not have fully used summary context")
-                print(f"   Answer: {result.response[:100]}...")
-            
-            # Save session for inspection
-            session.save()
-            print(f"\n📁 Session saved: {session.session_id}.json")
+            # Giai đoạn 5: Tổng hợp (turns 21-25) - Trigger summarization
+            "Ẩm thực Việt Nam có những đặc điểm gì nổi bật?",
+            "Món ăn nào đại diện cho mỗi miền?",
+            "Phở có nguồn gốc từ đâu và phát triển như thế nào?",
+            "So sánh phở Bắc và phở Nam",
+            """
+            Hãy tổng hợp cho tôi một bài viết chi tiết về bản sắc văn hóa 
+            Việt Nam, bao gồm lịch sử hình thành, các giá trị truyền thống,
+            lễ hội, nghệ thuật, ẩm thực và cách người Việt gìn giữ văn hóa
+            trong thời đại toàn cầu hóa ngày nay?
+            """,
+        ]
+        
+        print(f"\n{'='*60}")
+        print("CONVERSATION 3: Lịch sử & Văn hóa Việt Nam (Tiếng Việt)")
+        print(f"{'='*60}")
+        
+        for i, query in enumerate(queries, 1):
+            result = pipeline.process_and_record(query)
+            status = "✓" if not result.needs_clarification else "? (clarification)"
+            print(f"Turn {i:2d}: {status} | Messages: {len(session.raw_messages):2d} | Summary: {'Yes' if session.summary else 'No'}")
+        
+        # Verify requirements
+        print(f"\n{'='*40}")
+        print("VERIFICATION:")
+        print(f"  Total turns: {session.total_turns}")
+        print(f"  Total messages: {len(session.raw_messages)}")
+        print(f"  Summary triggered: {session.summary is not None}")
+        if session.summary:
+            print(f"  Summarized up to turn: {session.summarized_up_to_turn}")
+            print(f"  Topics: {session.summary.topics[:3]}...")
+        
+        # Save session
+        session.save()
+        print(f"\n📁 Saved: data/sessions/{session.session_id}.json")
+        
+        # Assertions
+        assert session.total_turns >= 20, "Should have at least 20 turns"
+        assert session.summary is not None, "Summarization should have triggered"
 
 
-class TestE2EEdgeCases:
-    """Test edge cases in E2E flows."""
+class TestAmbiguousQueries:
+    """Additional test to explicitly demonstrate ambiguous query handling."""
     
     @pytest.fixture
     def llm_client(self):
+        # Force reload config from .env to avoid mock keys from other tests
+        from app.utils.config import reload_config
+        reload_config()
         return OpenAIClient()
     
-    def test_empty_session_query(self, llm_client):
-        """Test query on completely empty session."""
+    def test_ambiguous_query_handling(self, llm_client):
+        """
+        Demonstrate how the system handles ambiguous queries.
+        Some may trigger clarification, others resolved via context.
+        """
         session = SessionManager(llm_client=llm_client)
         pipeline = QueryPipeline(session, llm_client)
         
-        result = pipeline.process("What is Python?")
+        print(f"\n{'='*60}")
+        print("AMBIGUOUS QUERY HANDLING TEST")
+        print(f"{'='*60}")
         
-        # Should handle empty session gracefully
-        assert not result.needs_clarification
-        assert len(result.response) > 0
+        # Establish context
+        result = pipeline.process_and_record("I'm learning Python programming")
+        print(f"Context: I'm learning Python programming")
         
-        # Save session
-        session.save()
-        print(f"✅ Empty session handled")
-        print(f"📁 Session saved: {session.session_id}.json")
-    
-    def test_rapid_context_switches(self, llm_client):
-        session = SessionManager(llm_client=llm_client)
-        pipeline = QueryPipeline(session, llm_client)
+        result = pipeline.process_and_record("I want to build a web app with Flask")
+        print(f"Context: I want to build a web app with Flask")
         
-        topics = [
-            "Tell me about Python",
-            "What about JavaScript?",
-            "How about Rust?",
-            "Explain Go language",
+        # Ambiguous queries
+        ambiguous_queries = [
+            ("Tell me more about it", "Pronoun reference"),
+            ("What are the alternatives?", "Implicit context"),
+            ("How do I install that?", "Pronoun reference"),
+            ("Is it better than the other one?", "Comparison without clear subjects"),
+            ("Show me an example", "Missing specificity"),
         ]
         
-        answered_count = 0
-        for topic in topics:
-            result = pipeline.process_and_record(topic)
-            if not result.needs_clarification:
-                answered_count += 1
-            assert not result.needs_clarification or session.clarification_count <= config.MAX_CLARIFICATION_ROUNDS
-        
-        assert session.total_turns == answered_count
+        for query, ambiguity_type in ambiguous_queries:
+            result = pipeline.process_and_record(query)
+            status = "CLARIFICATION" if result.needs_clarification else "RESOLVED"
+            print(f"\n  Query: '{query}'")
+            print(f"  Type: {ambiguity_type}")
+            print(f"  Result: {status}")
+            if result.needs_clarification:
+                print(f"  Clarification: {result.response[:100]}...")
         
         session.save()
-        print(f"✅ Handled {len(topics)} topics, {answered_count} answered")
-        print(f"📁 Session saved: {session.session_id}.json")
-    
-    def test_session_persistence(self, llm_client, tmp_path, monkeypatch):
-        """Test saving and loading session preserves state."""
-        # Use temp directory
-        monkeypatch.setattr('app.utils.config.get_config', lambda: type('Config', (), {
-            'SESSION_DATA_DIR': str(tmp_path),
-            'LIGHT_CONTEXT_SIZE': 8,
-            'RECENT_CONTEXT_SIZE': 10,
-            'TOKEN_THRESHOLD_RAW': 10000,
-            'SUMMARY_TOKEN_THRESHOLD': 2000,
-            'KEEP_RECENT_N': 16,
-            'MAX_CLARIFICATION_ROUNDS': 2
-        })())
-        
-        from app.core.session import SessionManager as SM
-        from app.core.pipeline import QueryPipeline as QP
-        
-        # Create and use session
-        session1 = SM(llm_client=llm_client)
-        pipeline1 = QP(session1, llm_client)
-        
-        pipeline1.process_and_record("I'm building a web app")
-        pipeline1.process_and_record("Using Python and FastAPI")
-        
-        session_id = session1.session_id
-        session1.save()
-        
-        # Load session and continue
-        session2 = SM(session_id=session_id, llm_client=llm_client)
-        pipeline2 = QP(session2, llm_client)
-        
-        # Should have preserved state
-        assert session2.total_turns == 2
-        assert len(session2.raw_messages) == 4
-        
-        # Continue conversation
-        result = pipeline2.process("What framework am I using?")
-        
-        # Should reference FastAPI from loaded context
-        assert "fastapi" in result.response.lower() or "framework" in result.response.lower()
-        
-        print(f"✅ Session persistence works")
-        print(f"   Loaded {session2.total_turns} turns, {len(session2.raw_messages)} messages")
+        print(f"\n📁 Saved: data/sessions/{session.session_id}.json")

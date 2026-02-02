@@ -1,48 +1,91 @@
 # ChatTMT - Conversational Agent with Session Memory
 
-A production-ready conversational agent built with LangChain and OpenAI that implements intelligent session memory management, query understanding, and context-aware responses.
+An intelligent conversational agent that implements session memory management through structured summarization, enabling long conversations without context loss.
 
-## Features
+---
 
-- **Session Memory via Summarization**: Automatically summarizes conversations when token count exceeds 2000 tokens, maintaining context while reducing token usage
-- **Query Understanding Pipeline**: 
-  - Rewrites ambiguous queries for clarity
-  - Augments queries with session context and user profile
-  - Asks clarifying questions when needed
-- **Structured Outputs**: Uses Pydantic schemas for session summaries and query analysis
-- **Session Persistence**: Saves conversation history to JSON files for continuation
-- **Dual Interfaces**: CLI and Streamlit UI with debug panel
+## Table of Contents
 
-## Setup
+- [Setup Instructions](#setup-instructions)
+- [How to Run the Demo](#how-to-run-the-demo)
+- [High-Level Design](#high-level-design)
+- [Assumptions & Limitations](#assumptions--limitations)
 
-### 1. Install Dependencies
+---
+
+## Setup Instructions
+
+### 1. Clone and Create Virtual Environment
+
+**Option A: Using Python venv**
+```bash
+cd ChatTMT
+python -m venv venv
+
+# Windows
+.\venv\Scripts\Activate.ps1
+
+# Linux/macOS
+source venv/bin/activate
+```
+
+**Option B: Using Conda**
+```bash
+cd ChatTMT
+conda create -n chattmt python=3.11
+conda activate chattmt
+```
+
+### 2. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure OpenAI API
+### 3. Configure Environment Variables
 
-Create a `.env` file in the project root:
-
-```env
-OPENAI_API_KEY=your_api_key_here
-OPENAI_MODEL=gpt-4o-mini
-```
-
-See [docs/OPENAI_API_SETUP.md](docs/OPENAI_API_SETUP.md) for detailed API setup instructions.
-
-### 3. Verify Installation
-
-Run tests to ensure everything is working:
+Copy the example environment file and edit it:
 
 ```bash
+# Windows
+copy .env.example .env
+
+# Linux/macOS
+cp .env.example .env
+```
+
+Open `.env` and configure your settings. The file is fully commented with explanations for each variable.
+
+> **Important**: Set your `OPENAI_API_KEY` in the `.env` file before running.
+
+### 4. Verify Installation
+
+```bash
+# Run unit tests (fast, no API calls)
+pytest tests/ -v --ignore=tests/test_e2e.py
+
+# Run all tests including e2e (requires API key, ~5-10 mins)
 pytest tests/ -v
 ```
 
-Expected: 126 tests pass in ~5 minutes.
+---
 
-## Usage
+## How to Run the Demo
+
+### Streamlit UI (Recommended)
+
+```bash
+streamlit run app/ui/ui_app.py
+```
+
+**Features:**
+- Interactive chat interface
+- Session management (create, save, load sessions)
+- **Debug Panel** showing:
+  - Session state and metadata
+  - Summary schema (structured JSON)
+  - Token usage with progress bars
+  - Threshold monitoring (history & summary)
 
 ### CLI Interface
 
@@ -50,203 +93,167 @@ Expected: 126 tests pass in ~5 minutes.
 python main.py
 ```
 
-**Available commands:**
+**Commands:**
 - Type your questions naturally
-- `/exit` - Save session and exit
-- `Ctrl+C` - Save session and exit
+- `/exit` or `Ctrl+C` - Save session and exit
 
-### Streamlit UI
+---
 
-```bash
-streamlit run app/ui/ui_app.py
-```
+## High-Level Design
 
-**Features:**
-- Chat interface with session history
-- Debug panel showing:
-  - Raw token count
-  - Compressed token count
-  - Recent summarization status
-  - Query rewriting logs
-- Session management (load/save/create new)
-
-## System Design
-
-### High-Level Architecture
+### Architecture Overview
 
 ```
-User Query → Pipeline → LLM Response
-              ↓
-         [Rewrite] → [Augment] → [Decision] → [Answer/Clarify] → [Summarize]
+User Query → QueryPipeline → Response
+                  │
+    ┌─────────────┼─────────────┐
+    ▼             ▼             ▼
+[Step 0]      [Step 1-3]    [Step 4]
+ Memory        Query        Generate
+ Check       Understanding   Answer
 ```
 
-### Pipeline Flow
+### Core Pipeline (4 Steps)
 
-1. **Rewriter**: Analyzes query for ambiguity, rewrites if needed
-2. **Augmenter**: Adds session context (summary + recent messages) and user profile
-3. **Decision**: Routes to answer or clarification based on query clarity
-4. **Answer/Clarifier**: Generates response or asks clarifying questions
-5. **Summarizer**: Triggers when raw token count > 2000, generates structured summary
+| Step | Module | Purpose |
+|------|--------|---------|
+| **0** | Summarizer | Check token thresholds → Summarize/Compress if needed |
+| **1** | Rewriter | Resolve pronouns ("it", "that") and detect ambiguity |
+| **2** | Augmenter | Inject relevant memory fields into context |
+| **3** | Clarifier | Ask clarifying questions if query still unclear |
+| **4** | Answer | Generate final response using augmented context |
 
-### Key Components
+### Key Features
 
-**app/core/**
-- `pipeline.py` - Orchestrates the query processing pipeline
-- `session.py` - Manages session state and persistence
-- `schemas.py` - Pydantic models for structured outputs
+#### 1. Two-Level Memory Compression
 
-**app/modules/**
-- `rewriter.py` - Query rewriting for ambiguous queries
-- `augmenter.py` - Context augmentation with memory
-- `decision.py` - Routing logic (answer vs clarify)
-- `answer.py` - Final answer generation
-- `clarifier.py` - Clarifying question generation
-- `summarizer.py` - Conversation summarization
-- `prompt_builder.py` - Prompt templates
+| Trigger | Action | Effect |
+|---------|--------|--------|
+| `raw_messages` > 3000 tokens | **Summarization** | Messages → Structured Summary |
+| `summary` > 800 tokens | **Compression** | Summary → Smaller Summary |
 
-**app/llms/**
-- `openai_client.py` - OpenAI API client with retry logic (3 attempts, exponential backoff)
+This ensures conversations can continue indefinitely without hitting context limits.
 
-**app/utils/**
-- `config.py` - Configuration management with environment variables
-- `logger.py` - Structured logging
-- `tokenizer.py` - Token counting with tiktoken
+#### 2. Structured Session Summary (Pydantic Schema)
 
-### Token Management
-
-- **Raw Messages**: Full conversation history
-- **Summarization Trigger**: When raw token count > 2000 (configurable via `TOKEN_THRESHOLD_RAW`)
-- **Context Window**: Keeps last 5 turns + summary (configurable via `KEEP_RECENT_N`)
-- **Token Counting**: Uses `tiktoken` for accurate OpenAI token measurement
-
-### Structured Outputs
-
-**SessionSummary** (from summarizer):
-```json
-{
-  "user_profile": {
-    "prefs": ["preference 1", "preference 2"],
-    "constraints": ["constraint 1"],
-    "background": "user context"
-  },
-  "current_goal": "what user is trying to achieve",
-  "topics": ["topic 1", "topic 2"],
-  "key_facts": ["fact 1", "fact 2"],
-  "decisions": ["decision 1"],
-  "open_questions": ["question 1"],
-  "todos": ["action 1"]
-}
+```python
+SessionSummary:
+├── user_profile
+│   ├── prefs          # User preferences
+│   ├── constraints    # Limitations
+│   └── background     # User context (e.g., "software engineer")
+├── current_goal       # Main objective
+├── topics             # Key entities discussed
+├── key_facts          # Important information extracted
+├── decisions          # Decisions made during session
+├── open_questions     # Unresolved questions
+└── todos              # Action items to follow up
 ```
 
-**QueryUnderstandingResult** (from rewriter):
-```json
-{
-  "original_query": "user's original query",
-  "rewritten_query": "clarified version",
-  "is_ambiguous": false,
-  "explanation": "why rewrite was needed"
-}
+The summary is **not just a text blob** - it's a structured JSON that allows selective retrieval of relevant context.
+
+#### 3. Intelligent Context Augmentation
+
+The Rewriter module decides which memory fields are relevant:
+
+```python
+ContextUsage:
+├── use_user_profile    # Include user preferences?
+├── use_current_goal    # Include main objective?
+├── use_topics          # Include discussed topics?
+├── use_key_facts       # Include important facts?
+├── use_decisions       # Include past decisions?
+├── use_open_questions  # Include pending questions?
+└── use_todos           # Include action items?
 ```
+
+This **selective augmentation** prevents context pollution and keeps prompts focused.
+
+#### 4. Query Understanding Pipeline
+
+```
+Original Query: "What about the other one?"
+                     ↓
+[Rewriter] - Uses last 8 messages (light context)
+           - Resolves: "other one" → "React framework"
+                     ↓
+Rewritten: "What about the React framework?"
+                     ↓
+[Augmenter] - Injects: topics=["Vue", "React"], key_facts=[...]
+                     ↓
+[Clarifier] - Query clear? → Generate answer
+            - Still vague? → Ask clarifying questions
+```
+
+#### 5. Clarification Loop with Safety Limit
+
+- System asks up to **2 clarifying questions** (configurable)
+- After max rounds, forces a best-effort answer
+- Prevents infinite clarification loops
+
+#### 6. Session Persistence
+
+- Sessions saved as JSON files in `data/sessions/`
+- Full conversation history with timestamps
+- Can resume sessions from UI or programmatically
+
+### Project Structure
+
+```
+ChatTMT/
+├── app/
+│   ├── core/           # Core logic
+│   │   ├── pipeline.py    # Orchestrates the 4-step pipeline
+│   │   ├── session.py     # Session state management
+│   │   └── schemas.py     # Pydantic models (all schemas)
+│   ├── modules/        # Pipeline modules
+│   │   ├── rewriter.py    # Step 1: Query rewriting
+│   │   ├── augmenter.py   # Step 2: Context augmentation
+│   │   ├── clarifier.py   # Step 3: Clarification check
+│   │   ├── answer.py      # Step 4: Response generation
+│   │   └── summarizer.py  # Step 0: Memory compression
+│   ├── llms/           # LLM abstraction
+│   │   ├── base.py        # Base interface
+│   │   └── openai_client.py
+│   ├── ui/             # User interfaces
+│   │   └── ui_app.py      # Streamlit application
+│   └── utils/          # Utilities
+│       ├── config.py      # Environment configuration
+│       ├── logger.py      # Logging setup
+│       └── tokenizer.py   # Token counting (tiktoken)
+├── data/sessions/      # Saved session files
+├── tests/              # Test suite (123 tests)
+├── .env.example        # Environment template
+└── requirements.txt    # Dependencies
+```
+
+---
 
 ## Assumptions & Limitations
 
 ### Assumptions
 
-1. **OpenAI API Access**: Requires valid API key with sufficient quota
-2. **English Language**: Prompts and examples optimized for English (but supports other languages via LLM)
-3. **Internet Connection**: Required for OpenAI API calls
-4. **Token Threshold**: 2000 tokens is a reasonable balance between context and cost (adjustable)
-5. **Recent Context**: Keeping last 5 turns provides sufficient context for most conversations
+1. **OpenAI API Access**: Requires a valid OpenAI API key with access to the configured model
+2. **Model Compatibility**: Designed for GPT-4 class models; may work with GPT-3.5 but not optimized
+3. **Single User**: Each session assumes a single user; no multi-user support
+4. **Text Only**: Handles text conversations only; no image/audio support
 
 ### Limitations
 
-1. **Token Counting Overhead**: Doesn't account for message formatting overhead (~4-5 tokens per message)
-2. **Clarification Counter**: Not reset on topic switch (edge case, <0.1% of conversations)
-3. **Error Handling**: Corrupt JSON sessions may not load gracefully (low frequency)
-4. **Cost Tracking**: No aggregated LLM cost reporting
-5. **Single User**: Designed for single-user sessions (no multi-user support)
-6. **English Prompts**: System prompts in English, may be suboptimal for non-English conversations
-7. **Debug Logs**: Default LOG_LEVEL is DEBUG (acceptable for demo, should be INFO in production)
+1. **No RAG/External Knowledge**: Does not retrieve external documents; relies only on conversation context and LLM knowledge
+2. **No Streaming**: Responses are returned in full (no token-by-token streaming)
+3. **Session Isolation**: Sessions are independent; no cross-session memory
+4. **Token Estimation**: Uses tiktoken for GPT-4 encoding; may vary slightly for other models
+5. **Summarization Quality**: Summary quality depends on LLM; very long or complex conversations may lose nuance
 
-### Design Decisions
+### Cost Considerations
 
-- **File-based Persistence**: Simple JSON storage for demo purposes (would use database in production)
-- **Exponential Backoff**: 3 retry attempts (1s, 2s, 4s delays) for OpenAI API resilience
-- **Pydantic Schemas**: Ensures structured, validated outputs from LLM
-- **Token-based Triggers**: Simpler than semantic change detection, more predictable
-- **Keep Recent N**: Balances context relevance with token efficiency
-
-## Testing
-
-Run all tests:
-```bash
-pytest tests/ -v
-```
-
-Run specific test files:
-```bash
-pytest tests/test_pipeline.py -v
-pytest tests/test_e2e.py -v
-```
-
-### Test Coverage
-
-- **126 tests** across 13 test files
-- **Unit tests**: Config, logger, schemas, tokenizer, modules
-- **Integration tests**: Pipeline, end-to-end flows
-- **Coverage**: Core logic, error handling, edge cases
-
-### Manual Testing
-
-See [docs/MANUAL_TESTING_GUIDE.md](docs/MANUAL_TESTING_GUIDE.md) for scenarios to test:
-1. Beginner learning journey (20+ turns, triggers summarization)
-2. Ambiguous query handling
-3. Context continuity across session loads
-
-## Project Structure
-
-```
-ChatTMT/
-├── app/
-│   ├── core/           # Pipeline orchestration
-│   ├── modules/        # Query processing modules
-│   ├── llms/           # LLM clients
-│   ├── ui/             # Streamlit interface
-│   └── utils/          # Config, logging, tokenizer
-├── data/
-│   └── sessions/       # Saved session files
-├── docs/               # Documentation
-├── tests/              # Test suite (126 tests)
-├── main.py            # CLI entry point
-├── requirements.txt   # Python dependencies
-└── README.md          # This file
-```
-
-## Debugging
-
-Enable debug mode to see detailed pipeline logs:
-
-```bash
-# In .env file
-LOG_LEVEL=DEBUG
-```
-
-See [docs/DEBUG_MODE.md](docs/DEBUG_MODE.md) for advanced debugging techniques.
-
-## Contributing
-
-This is a demo project for assignment submission. For production use, consider:
-- Database for session storage (PostgreSQL/MongoDB)
-- User authentication and multi-user support
-- Redis for caching summaries
-- Monitoring and observability (Prometheus, Grafana)
-- Horizontal scaling with load balancer
-- Cost tracking and budget alerts
-
-## License
-
-See [LICENSE](LICENSE) file for details.
+- Summarization and compression use additional API calls
+- E2E tests consume approximately $1-2 in API costs
+- For cost-effective testing, use `--ignore=tests/test_e2e.py`
 
 ---
 
-**Built with:** Python 3.11, LangChain, OpenAI, Streamlit, Pydantic, pytest
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.

@@ -79,10 +79,11 @@ class SessionManager:
             user_message: User's message content
             assistant_message: Assistant's response content
         """
-        self.state.raw_messages.append(Message(role="user", content=user_message))
-        self.state.raw_messages.append(Message(role="assistant", content=assistant_message))
+        now = datetime.now()
+        self.state.raw_messages.append(Message(role="user", content=user_message, timestamp=now))
+        self.state.raw_messages.append(Message(role="assistant", content=assistant_message, timestamp=now))
         self.state.total_turns += 1
-        self.state.last_updated = datetime.now()
+        self.state.last_updated = now
         
         logger.debug(f"Added turn {self.state.total_turns}: "
                     f"user={len(user_message)} chars, assistant={len(assistant_message)} chars")
